@@ -1,0 +1,26 @@
+name: Deploy site to hosting
+on:
+  push:
+    branches: [main]
+    paths: ['site/**']
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload site/ over FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps            # use "ftp" if your host has no TLS on FTP
+          local-dir: ./site/
+          server-dir: ${{ secrets.FTP_DIR }}   # e.g. /public_html/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            config.php
+            config.example.php
+            data/**

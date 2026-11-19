@@ -1,0 +1,10 @@
+# Apache. Blocks direct access to private files and keeps map links out of search engines.
+<FilesMatch "^(config\.php|\.htaccess)$">
+  Require all denied
+</FilesMatch>
+Options -Indexes
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, nofollow"
+  Header set Referrer-Policy "no-referrer"
+  Header set X-Content-Type-Options "nosniff"
+</IfModule>
