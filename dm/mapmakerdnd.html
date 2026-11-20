@@ -2080,13 +2080,16 @@ function wInspect(){const el=$('#wInsp'),k=W.sel;
       +'<label>Player blurb <small>(what players get once they learn of it)</small><textarea data-f="pub" rows="3">'+esc(s.pub||'')+'</textarea></label>';
      const f=s.link&&files[s.link];
      if(!s.link)h+='<div class="lk"><b>⚔ Battle map</b>'+(W.pick?mapPick():'')+'<div class="row"><button data-a="linkpick">🔗 Link saved map…</button><button data-a="newmap">➕ New battle map</button></div></div>';
-     else if(f)h+='<div class="lk"><b>⚔ '+esc(f.name)+'</b><span class="hint">'+esc(f.campaign||'no campaign')+'</span><div class="row"><button data-a="openmap" class="on">Open ▶</button><button data-a="linkpick">Change…</button><button data-a="unlink">Unlink</button></div>'+(W.pick?mapPick():'')+'</div>';
+     else if(f)h+='<div class="lk"><b>⚔ '+esc(f.name)+'</b><span class="hint">'+esc(f.campaign||'no campaign')+'</span><div class="row"><button data-a="openmap" class="on">Open ▶</button><button data-a="linkpick">Change…</button><button data-a="unlink">Unlink</button></div>'+(W.pick?mapPick():'')
+       +((f.campaign||'')!==W.camp?'<span class="hint">⚠ This map belongs to another campaign, so players of <b>'+esc(W.camp)+'</b> cannot open it. Set its campaign to match.</span>'
+        :'<label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-f="plink"'+(s.plink===false?'':' checked')+'> Players can open this battle map from the world page</label><span class="hint">'+(f.data.pubAt?'Published to the site '+fmtTime(f.data.pubAt)+'.':'Not published yet: open it, publish it from its 🌐 panel, then publish the world again.')+'</span>')+'</div>';
      else h+='<div class="lk bad"><b>⚠ Linked map is missing</b><span class="hint">it was deleted, or this world came from another device.</span>'+(W.pick?mapPick():'')+'<div class="row"><button data-a="linkpick">🔗 Relink…</button><button data-a="newmap">➕ New battle map</button><button data-a="unlink">Unlink</button></div></div>'}
     h+='<button data-a="rmsite" class="danger">Remove site</button>'}
   el.innerHTML=h}
 $('#wInsp').addEventListener('change',e=>{const f=e.target.dataset.f,k=W.sel;if(!f||!k)return;const s=W.w.sites[k],v=e.target.value;
   if(f==='known'){wEdit(()=>{if(e.target.checked)W.w.known[k]=1;else delete W.w.known[k]},true);return}
   if(f==='show'){wEdit(()=>{s.show=e.target.checked},true);return}
+  if(f==='plink'){wEdit(()=>{s.plink=e.target.checked},true);return}
   if(f==='terr')wEdit(()=>{if(v==='')delete W.w.cells[k];else W.w.cells[k]=+v});
   else if(f==='type')wEdit(()=>{s.type=v});
   else if(f==='name'||f==='pubName'||f==='dm'||f==='pub')wEdit(()=>{s[f]=v},true);
@@ -2178,8 +2181,11 @@ function wPlayerRender(maxPx){const ks=Object.keys(W.w.known);if(!ks.length)retu
   for(const k of ks){const[q,r]=unk(k),[x,y]=h2p(q,r);a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,x);d=Math.max(d,y)}
   a-=HEXS*1.3;b-=HEXS*1.3;c+=HEXS*1.3;d+=HEXS*1.3;const k=Math.min(1.1,maxPx/Math.max(c-a,d-b)),w=Math.ceil((c-a)*k),h=Math.ceil((d-b)*k),cx=(a+c)/2,cy=(b+d)/2,cvs=document.createElement('canvas');cvs.width=w;cvs.height=h;
   wRender(cvs.getContext('2d'),{cx,cy,z:k},w,h,{player:true,noUI:true});return{canvas:cvs,k,w,h,ox:cx-w/2/k,oy:cy-h/2/k}}
+function wLinkMid(s){ // id the linked battle map has (or will have) on the site; players only see the link if that map is actually published
+  const f=s.link&&files[s.link];if(!f||s.plink===false||(f.campaign||'')!==W.camp)return undefined;
+  if(!f.data.pubId){f.data.pubId=newMapId();saveFilesIdb()}return f.data.pubId}
 function wSnapshot(r){const w=W.w,sites=[];
-  for(const key in w.sites){const s=w.sites[key];if(!(w.known[key]&&s.show)||s.type==='label')continue;const[q,rr]=unk(key);sites.push({q,r:rr,coord:offLbl(q,rr),icon:(SITE_BY[s.type]||SITE_BY['']).i,name:s.pubName||s.name||'',blurb:s.pub||''})}
+  for(const key in w.sites){const s=w.sites[key];if(!(w.known[key]&&s.show)||s.type==='label')continue;const[q,rr]=unk(key);sites.push({q,r:rr,coord:offLbl(q,rr),icon:(SITE_BY[s.type]||SITE_BY['']).i,name:s.pubName||s.name||'',blurb:s.pub||'',map:wLinkMid(s)})}
   sites.sort((a,b)=>(a.name||'~').localeCompare(b.name||'~'));
   let party=null;if(w.party&&w.known[w.party]){const[q,rr]=unk(w.party);party={q,r:rr,coord:offLbl(q,rr)}}
   return{kind:'world',v:1,title:W.camp+' — world',orient:w.orient,hexs:HEXS,k:r.k,ox:r.ox,oy:r.oy,w:r.w,h:r.h,known:Object.keys(w.known).length,sites,party}}

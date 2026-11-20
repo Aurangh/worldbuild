@@ -46,14 +46,14 @@ canvas{display:block}
 #state{position:fixed;inset:0;background:var(--bg);display:none;place-items:center;text-align:center;padding:24px;z-index:40}
 #state h1{font-size:20px;margin:0 0 8px}#state p{margin:0;color:var(--mut);max-width:36ch}
 body.world #ptools,body.world #reset,body.world .stk{display:none!important}
-.wsite{padding:8px 6px;border-radius:6px;cursor:pointer;border:1px solid transparent}.wsite+.wsite{margin-top:4px}.wsite:hover{background:#262a33}.wsite.cur{border-color:var(--acc);background:#1d2b3a}.wsite .wb{color:#cfd3dc;font-size:13px;margin-top:3px;white-space:pre-wrap}
+.openmap{display:block;width:100%;margin-top:8px;background:var(--acc);color:#111;border-color:var(--acc);font-weight:600}#backW{white-space:nowrap}.wsite{padding:8px 6px;border-radius:6px;cursor:pointer;border:1px solid transparent}.wsite+.wsite{margin-top:4px}.wsite:hover{background:#262a33}.wsite.cur{border-color:var(--acc);background:#1d2b3a}.wsite .wb{color:#cfd3dc;font-size:13px;margin-top:3px;white-space:pre-wrap}
 @media (max-width:820px){#main{flex-direction:column}#side{width:auto;border-left:0;border-top:1px solid var(--b);max-height:42%}}
 </style></head>
 <body>
 <div id="app">
   <div id="top">
     <span id="ttl">Map</span>
-    <select id="mapSel" style="display:none" title="other maps in this campaign"></select>
+    <button id="backW" style="display:none" title="back to the world map">← World</button><select id="mapSel" style="display:none" title="other maps in this campaign"></select>
     <span id="stamp"></span>
     <span class="sp"></span>
     <label id="zoomWrap">Zoom <input id="zoom" type="range" min="14" max="140" value="28"></label>
@@ -113,11 +113,12 @@ async function load(mid){
   if(!j.map){$('#ttl').textContent=j.campaign||'Map';$('#stamp').textContent='';showState('No map yet','Your DM has not published a map. Check back soon.');return}
   $('#state').style.display='none';
   CUR=j.map;S=j.map.snapshot;setKind();wsel=-1;
-  if(!mid)loadedLatest=MAPS.length?MAPS[0].published:CUR.published;
+  loadedLatest=MAPS.length?MAPS[0].published:CUR.published;
   moves.clear();sel=null;measure=null;aoe=null;drag=null;$('#banner').style.display='none';
   $('#ttl').textContent=(j.campaign?j.campaign+' · ':'')+(CUR.name||S.title||'Map');
   document.title=(CUR.name||'Map')+' · '+(j.campaign||'Map table');
   $('#stamp').textContent='Published '+new Date(CUR.published*1000).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+(S.area?' · '+S.area:'');
+  $('#backW').style.display=(backMid&&!isWorld())?'':'none';if(isWorld())backMid=null;
   const ms=$('#mapSel');ms.style.display=MAPS.length>1?'':'none';
   ms.innerHTML=MAPS.map(m=>'<option value="'+esc(m.mid)+'">'+esc(m.name||'Map')+'</option>').join('');ms.value=CUR.mid;
   await new Promise(res=>{const im=new Image();im.onload=()=>{baseImg=im;res()};im.onerror=()=>{baseImg=null;res()};
@@ -134,7 +135,8 @@ function fitZoom(){const cw=$('#cwrap'),AW=cw.clientWidth-6,AH=cw.clientHeight-6
   // fill the available area: fit width and height, but never shrink below readable (28) just to avoid scrolling a tall map
   const fw=Math.floor((AW-M)/S.grid.c)||14,fh=Math.floor((AH-M)/S.grid.r)||14;
   cs=Math.max(14,Math.min(140,Math.max(Math.min(fw,fh),Math.min(fw,28))));$('#zoom').value=cs}
-$('#mapSel').onchange=e=>load(e.target.value);
+$('#mapSel').onchange=e=>{backMid=null;load(e.target.value)};
+$('#backW').onclick=()=>{const m=backMid;backMid=null;load(m)};
 $('#zoom').oninput=e=>{userZoom=true;cs=+e.target.value;draw()};
 window.addEventListener('resize',()=>{if(S&&!userZoom){fitZoom();draw()}});
 $('#bannerBtn').onclick=()=>load();
@@ -274,9 +276,12 @@ function drawWorld(forExport){const f=cs/100,W=Math.max(1,Math.round(S.w*f)),H=M
   const s=!forExport&&S.sites[wsel];if(s){const[x,y]=wToCanvas(...wH2P(s.q,s.r)),R=S.hexs*S.k*f;ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/180*(60*i+(S.orient==='flat'?0:-30)),px=x+R*Math.cos(a),py=y+R*Math.sin(a);i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.closePath();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();ctx.strokeStyle='#5b9bd5';ctx.lineWidth=1.5;ctx.stroke()}}
 function renderWorldSide(){let h='';
   if(S.party)h+='<div class="pchead">Party</div><div class="prow"><div class="chip" style="background:#ffd54a;color:#111;border-color:#fff">⚔️</div><div><div class="pname">Currently at '+esc(S.party.coord)+'</div></div></div>';
-  h+='<div class="pchead">Places</div>'+(S.sites.length?S.sites.map((s,i)=>'<div class="wsite'+(i===wsel?' cur':'')+'" data-i="'+i+'"><div class="pname">'+esc(s.icon)+' '+esc(s.name||'Unnamed place')+' <span class="hint">'+esc(s.coord)+'</span></div>'+(s.blurb?'<div class="wb">'+esc(s.blurb)+'</div>':'')+'</div>').join(''):'<span class="hint">No places discovered yet.</span>');
+  h+='<div class="pchead">Places</div>'+(S.sites.length?S.sites.map((s,i)=>'<div class="wsite'+(i===wsel?' cur':'')+'" data-i="'+i+'"><div class="pname">'+esc(s.icon)+' '+esc(s.name||'Unnamed place')+' <span class="hint">'+esc(s.coord)+'</span></div>'+(s.blurb?'<div class="wb">'+esc(s.blurb)+'</div>':'')+(i===wsel&&hasMap(s)?'<button class="openmap" data-mid="'+esc(s.map)+'">⚔ Open battle map</button>':'')+'</div>').join(''):'<span class="hint">No places discovered yet.</span>');
   h+='<div class="hint" style="margin-top:14px">'+S.known+' hexes explored. Coordinates are shown on the map; use them in your posts.</div>';
   $('#plist').innerHTML=h}
+function hasMap(s){return !!(s&&s.map&&MAPS.some(m=>m.mid===s.map))}
+let backMid=null;
+document.addEventListener('click',e=>{const b=e.target.closest('.openmap');if(!b)return;e.stopPropagation();backMid=CUR.mid;load(b.dataset.mid)});
 function selectSite(i,scroll){wsel=i;draw();renderWorldSide();if(scroll&&i>=0){const s=S.sites[i],[x,y]=wToCanvas(...wH2P(s.q,s.r)),w=$('#cwrap');w.scrollTo({left:x-w.clientWidth/2,top:y-w.clientHeight/2,behavior:'smooth'})}}
 $('#plist').addEventListener('click',e=>{const d=e.target.closest('.wsite');if(d&&isWorld())selectSite(+d.dataset.i,true)});
 cv.addEventListener('click',e=>{if(!isWorld())return;const r=cv.getBoundingClientRect(),z=S.k*cs/100,h=wP2H(S.ox+(e.clientX-r.left)/z,S.oy+(e.clientY-r.top)/z);
@@ -295,5 +300,5 @@ $('#save').onclick=async()=>{if(!S)return;download(await blobOf(exportCanvas()))
 if(navigator.canShare){$('#share').style.display='';$('#share').onclick=async()=>{if(!S)return;const b=await blobOf(exportCanvas()),f=new File([b],fileName(),{type:'image/png'});
   try{if(navigator.canShare({files:[f]}))await navigator.share({files:[f]});else download(b)}catch(e){}}}
 
-load();
+load(params.get('m')||'');
 </script></body></html>
