@@ -1,4 +1,5 @@
 <?php
+// SPDX-License-Identifier: MIT | Copyright (c) 2026 Rodrigo Díaz Morales | See LICENSE
 declare(strict_types=1);
 
 // ---------------------------------------------------------------------------
