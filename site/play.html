@@ -18,7 +18,7 @@ button:disabled{opacity:.45;cursor:default}
 #zoomWrap{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:12px}
 #main{flex:1;min-height:0;display:flex}
 #cwrap{flex:1;min-width:0;overflow:auto;position:relative;background:var(--bg)}
-#cinner{position:relative;width:max-content}
+#cinner{position:relative;width:max-content;margin:0 auto}
 .stk{position:sticky;height:0;pointer-events:none}
 .stk canvas{position:absolute;top:0;left:0}
 #stkT{top:0;z-index:5}#stkL{left:0;width:0;z-index:4}#stkC{top:0;left:0;width:0;z-index:6}
@@ -56,7 +56,7 @@ body.world #ptools,body.world #reset,body.world .stk{display:none!important}
     <select id="mapSel" style="display:none" title="other maps in this campaign"></select>
     <span id="stamp"></span>
     <span class="sp"></span>
-    <label id="zoomWrap">Zoom <input id="zoom" type="range" min="14" max="96" value="28"></label>
+    <label id="zoomWrap">Zoom <input id="zoom" type="range" min="14" max="140" value="28"></label>
     <button id="reset" title="clear every proposed move, measurement and template">Reset</button>
     <button id="copy" title="copy the map with your proposed moves, then paste it into Discord">Copy image</button>
     <button id="save" title="download the image">Download</button>
@@ -128,9 +128,12 @@ async function load(mid){
 let lastKind='',wsel=-1;
 function isWorld(){return !!S&&S.kind==='world'}
 function setKind(){const k=isWorld()?'world':'map';document.body.classList.toggle('world',k==='world');
-  if(k!==lastKind){userZoom=false;const z=$('#zoom');if(k==='world'){z.min=5;z.max=300}else{z.min=14;z.max=96}lastKind=k}}
-function fitZoom(){if(isWorld()){const w=$('#cwrap').clientWidth-6,nw=baseImg?baseImg.naturalWidth:S.w;cs=Math.max(5,Math.min(100,Math.floor(w/nw*100)||5));$('#zoom').value=cs;return}
-  const w=$('#cwrap').clientWidth-M-6;cs=Math.max(14,Math.min(64,Math.floor(w/S.grid.c)||14));$('#zoom').value=cs}
+  if(k!==lastKind){userZoom=false;const z=$('#zoom');if(k==='world'){z.min=5;z.max=300}else{z.min=14;z.max=140}lastKind=k}}
+function fitZoom(){const cw=$('#cwrap'),AW=cw.clientWidth-6,AH=cw.clientHeight-6;
+  if(isWorld()){const nw=baseImg?baseImg.naturalWidth:S.w,nh=baseImg?baseImg.naturalHeight:S.h;cs=Math.max(5,Math.min(100,Math.floor(Math.min(AW/nw,AH/nh)*100)||5));$('#zoom').value=cs;return}
+  // fill the available area: fit width and height, but never shrink below readable (28) just to avoid scrolling a tall map
+  const fw=Math.floor((AW-M)/S.grid.c)||14,fh=Math.floor((AH-M)/S.grid.r)||14;
+  cs=Math.max(14,Math.min(140,Math.max(Math.min(fw,fh),Math.min(fw,28))));$('#zoom').value=cs}
 $('#mapSel').onchange=e=>load(e.target.value);
 $('#zoom').oninput=e=>{userZoom=true;cs=+e.target.value;draw()};
 window.addEventListener('resize',()=>{if(S&&!userZoom){fitZoom();draw()}});
