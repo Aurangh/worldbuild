@@ -1,8 +1,245 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
-<title>Map table</title>
-<style>html,body{height:100%;margin:0;background:#0d0e12;color:#e8eaf0;font:16px/1.5 system-ui,sans-serif}
-main{min-height:100%;display:grid;place-items:center;padding:24px;text-align:center}
-h1{font-size:20px;margin:0 0 8px}p{margin:0;color:#9aa0ac;max-width:34ch}</style></head>
-<body><main><div><h1>Map table</h1><p>Open the link your DM posted in Discord to see the current map.</p></div></main></body></html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Auranghzeb · Maps for your tabletop game</title>
+<meta name="description" content="Battle grids and a hex world map for D&D, shared with your players through one link.">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+
+<style>
+/* Layout: one column, 960px max. Cartographic table: slate-blue ground, hex grid as the recurring motif, section headers carry hex coordinates (the tool's own 03.07 labels). */
+:root{
+  --bg:#0f1520; --bg2:#151d2b; --card:#192233; --line:#2a3548; --fg:#e7ecf4; --mut:#9aa7bb;
+  --accent:#e0b04a; --accent-fg:#1a1405; --water:#4f8fbf; --link:#7fb4e6;
+  --f-head:ui-rounded,"Segoe UI",system-ui,sans-serif; --f-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --f-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --hexline:rgba(127,180,230,.07);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
+  --bg:#f4f6fa; --bg2:#e9eef5; --card:#ffffff; --line:#cdd6e3; --fg:#162033; --mut:#55637a;
+  --accent:#9a6a0c; --accent-fg:#ffffff; --water:#2f6fa3; --link:#1d5f9f; --hexline:rgba(30,80,140,.08); color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f4f6fa; --bg2:#e9eef5; --card:#ffffff; --line:#cdd6e3; --fg:#162033; --mut:#55637a;
+  --accent:#9a6a0c; --accent-fg:#ffffff; --water:#2f6fa3; --link:#1d5f9f; --hexline:rgba(30,80,140,.08); color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--f-body);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:960px;margin:0 auto}
+a{color:var(--link)}
+h1,h2,h3{font-family:var(--f-head);line-height:1.15;margin:0;text-wrap:balance}
+.mock-unused{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--accent);color:var(--accent-fg);font:500 12px/1 var(--f-mono);padding:7px 12px;text-align:center;letter-spacing:.04em;margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px)))}
+nav{display:flex;align-items:center;gap:16px;padding-block:18px;flex-wrap:wrap}
+.brand{font:700 18px var(--f-head);letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.brand svg{width:26px;height:26px}
+nav .sp{flex:1}
+.lang{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.lang button{font:600 12px var(--f-mono);background:transparent;color:var(--mut);border:0;padding:6px 10px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.lang button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.coord{font:400 12px var(--f-mono);color:var(--mut);letter-spacing:.08em;display:block;margin-bottom:10px}
+section{padding-block:56px;border-top:1px solid var(--line);position:relative}
+.hero{border-top:0;padding-block:34px 64px;display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(34px,5.4vw,56px);letter-spacing:-.02em}
+.hero p.lead{font-size:18px;color:var(--mut);max-width:34em;margin:18px 0 26px}
+.btns{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;font:600 15px var(--f-body);text-decoration:none;border-radius:10px;padding:12px 18px;border:1px solid var(--line);color:var(--fg);background:var(--card)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.map{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px}
+.map svg{display:block;width:100%;height:auto}
+.cap{font:400 12px var(--f-mono);color:var(--mut);padding:8px 4px 0}
+h2{font-size:clamp(24px,3.4vw,32px);margin-bottom:12px}
+.players{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.players p{color:var(--mut);max-width:36em;margin:0 0 12px}
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.steps li{display:grid;grid-template-columns:auto 1fr;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.steps b{font:700 13px var(--f-mono);color:var(--accent);padding-top:3px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card svg{width:100%;height:auto;border-radius:8px;background:var(--bg2)}
+.card h3{font-size:18px}.card p{margin:0;color:var(--mut);font-size:15px}
+.dm{display:grid;grid-template-columns:1.2fr 1fr;gap:32px;align-items:start}
+.dm p{color:var(--mut);max-width:36em}
+.facts{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.facts li{border-left:2px solid var(--accent);padding:2px 0 2px 12px;color:var(--mut)}
+.support{text-align:left;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
+.support p{margin:0;color:var(--mut);max-width:36em}
+footer{border-top:1px solid var(--line);padding-block:28px 40px;color:var(--mut);font-size:14px;display:flex;gap:18px 28px;flex-wrap:wrap;align-items:center}
+footer .sp{flex:1}
+code,.mono{font-family:var(--f-mono);font-size:.92em}
+.note{font:400 12px var(--f-mono);color:var(--mut);margin-top:10px}
+@media (max-width:820px){.hero,.players,.dm,.support{grid-template-columns:1fr}.cards{grid-template-columns:1fr}section{padding-block:44px}}
+@media (prefers-reduced-motion:no-preference){.btn{transition:transform .12s}.btn:hover{transform:translateY(-1px)}}
+</style></head><body>
+
+<div class="wrap">
+  <nav>
+    <div class="brand">
+      <svg viewBox="0 0 26 26" aria-hidden="true"><polygon points="20.5,13 16.75,19.5 9.25,19.5 5.5,13 9.25,6.5 16.75,6.5" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="13" cy="13" r="2.6" fill="var(--accent)"/></svg>
+      Auranghzeb
+    </div>
+    <span class="sp"></span>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="bEN" aria-pressed="true">EN</button><button id="bES" aria-pressed="false">ES</button>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <span class="coord">00.00 · <span data-i="c_home">HOME</span></span>
+      <h1 data-i="h1">Maps for your tabletop game</h1>
+      <p class="lead" data-i="lead">Battle grids and a hex world map for D&amp;D, shared with your players through one link.</p>
+      <div class="btns">
+        <a class="btn pri" href="#players" data-i="b_link">I got a link from my DM</a>
+        <a class="btn" href="#dm" data-i="b_dm">I run games</a>
+      </div>
+    </div>
+    <div class="map">
+      <svg id="heroMap" role="img" aria-label="Example hex world map with a road, a town, the party and unexplored fog"></svg>
+      <div class="cap" data-i="cap">An example world. Dark hexes are still unexplored, so players cannot see them.</div>
+    </div>
+  </header>
+
+  <section id="players">
+    <div class="players">
+      <div>
+        <span class="coord">01.00 · <span data-i="c_players">PLAYERS</span></span>
+        <h2 data-i="p_h">Got a link from your DM?</h2>
+        <p data-i="p_p">Open the link your DM gave you. There is nothing to install and no account to create.</p>
+        <p data-i="p_p2">You see only what your DM has chosen to show. Your DM updates the map and you reload the page.</p>
+      </div>
+      <ol class="steps">
+        <li><b>1</b><span data-i="s1">Open the link in any browser, on your phone or computer.</span></li>
+        <li><b>2</b><span data-i="s2">Zoom to read coordinates like <code>AK41</code> or <code>03.07</code> and use them in your posts.</span></li>
+        <li><b>3</b><span data-i="s3">Copy or download the image to share it on Discord.</span></li>
+        <li><b>?</b><span data-i="s4">If it says the link has changed, ask your DM for the new one.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="what">
+    <span class="coord">02.00 · <span data-i="c_what">TOOLS</span></span>
+    <h2 data-i="w_h">What it does</h2>
+    <div class="cards">
+      <article class="card">
+        <svg id="ill1" viewBox="0 0 220 130" role="img" aria-label="Battle grid with tokens, fog and a burst area"></svg>
+        <h3 data-i="k1h">Battle maps</h3><p data-i="k1p">Grid combat with tokens, fog of war, vision and areas, for in-person or play-by-post games.</p>
+      </article>
+      <article class="card">
+        <svg id="ill2" viewBox="0 0 220 130" role="img" aria-label="Hex map with a town linked to a battle map"></svg>
+        <h3 data-i="k2h">World map</h3><p data-i="k2p">Paint a hex map, mark towns and dungeons, link each place to its battle map, and reveal it to players as they explore.</p>
+      </article>
+      <article class="card">
+        <svg id="ill3" viewBox="0 0 220 130" role="img" aria-label="A map image going to Discord and to a link"></svg>
+        <h3 data-i="k3h">Share it</h3><p data-i="k3p">Post an image to Discord or send a link. Players see only what you choose to show.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="dm">
+    <div class="dm">
+      <div>
+        <span class="coord">03.00 · <span data-i="c_dm">DUNGEON MASTERS</span></span>
+        <h2 data-i="d_h">For DMs</h2>
+        <p data-i="d_p">The DM tool is one HTML file. It works offline in your browser and keeps your maps on your computer. Publishing to a site is optional.</p>
+        <div class="btns" style="margin-top:18px">
+          <a class="btn pri" href="https://github.com/Aurangh/worldbuild" data-i="d_get">Get the DM tool on GitHub</a>
+        </div>
+      </div>
+      <ul class="facts">
+        <li data-i="f1">No account, no install, no tracking.</li>
+        <li data-i="f2">Per-campaign Discord webhooks work even without a site.</li>
+        <li data-i="f3">Self-host the player pages on any PHP hosting.</li>
+        <li data-i="f4">Free to use.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="support">
+    <div class="support">
+      <div>
+        <span class="coord">04.00 · <span data-i="c_sup">SUPPORT</span></span>
+        <h2 data-i="u_h">Free to use</h2>
+        <p data-i="u_p">If it saves you prep time, you can brew me a potion. Nothing is locked behind it.</p>
+      </div>
+      <a class="btn pri" href="https://ko-fi.com/auranghzeb" id="coffee" target="_blank" rel="noopener" data-i="u_b">🧪 Brew me a potion</a>
+    </div>
+  </section>
+
+  <footer>
+    <a class="mono" href="mailto:aurangh@aurangbuilds.es">aurangh@aurangbuilds.es</a>
+    <a href="https://github.com/Aurangh/worldbuild">GitHub · Aurangh/worldbuild</a>
+    <span class="sp"></span>
+    <span data-i="ft_priv">No cookies and no tracking. Published maps are stored per campaign behind a secret link.</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+var T={
+ en:{c_home:"HOME",h1:"Maps for your tabletop game",lead:"Battle grids and a hex world map for D&D, shared with your players through one link.",b_link:"I got a link from my DM",b_dm:"I run games",cap:"An example world. Dark hexes are still unexplored, so players cannot see them.",c_players:"PLAYERS",p_h:"Got a link from your DM?",p_p:"Open the link your DM gave you. There is nothing to install and no account to create.",p_p2:"You see only what your DM has chosen to show. Your DM updates the map and you reload the page.",s1:"Open the link in any browser, on your phone or computer.",s2:"Zoom to read coordinates like AK41 or 03.07 and use them in your posts.",s3:"Copy or download the image to share it on Discord.",s4:"If it says the link has changed, ask your DM for the new one.",c_what:"TOOLS",w_h:"What it does",k1h:"Battle maps",k1p:"Grid combat with tokens, fog of war, vision and areas, for in-person or play-by-post games.",k2h:"World map",k2p:"Paint a hex map, mark towns and dungeons, link each place to its battle map, and reveal it to players as they explore.",k3h:"Share it",k3p:"Post an image to Discord or send a link. Players see only what you choose to show.",c_dm:"DUNGEON MASTERS",d_h:"For DMs",d_p:"The DM tool is one HTML file. It works offline in your browser and keeps your maps on your computer. Publishing to a site is optional.",d_get:"Get the DM tool on GitHub",f1:"No account, no install, no tracking.",f2:"Per-campaign Discord webhooks work even without a site.",f3:"Self-host the player pages on any PHP hosting.",f4:"Free to use.",c_sup:"SUPPORT",u_h:"Free to use",u_p:"If it saves you prep time, you can brew me a potion. Nothing is locked behind it.",u_b:"🧪 Brew me a potion",ft_legal:"Legal notice",ft_priv:"No cookies and no tracking. Published maps are stored per campaign behind a secret link."},
+ es:{c_home:"INICIO",h1:"Mapas para tu partida de rol",lead:"Cuadrículas de combate y mapa hexagonal del mundo para D&D, compartidos con tus jugadores con un solo enlace.",b_link:"Me han pasado un enlace",b_dm:"Dirijo partidas",cap:"Un mundo de ejemplo. Los hexágonos oscuros siguen sin explorar, así que los jugadores no los ven.",c_players:"JUGADORES",p_h:"¿Te ha pasado un enlace tu DM?",p_p:"Abre el enlace que te dio tu DM. No hay nada que instalar ni cuenta que crear.",p_p2:"Ves solo lo que tu DM ha decidido mostrar. Tu DM actualiza el mapa y tú recargas la página.",s1:"Abre el enlace en cualquier navegador, en el móvil o en el ordenador.",s2:"Haz zoom para leer coordenadas como AK41 o 03.07 y úsalas en tus mensajes.",s3:"Copia o descarga la imagen para compartirla en Discord.",s4:"Si dice que el enlace ha cambiado, pide el nuevo a tu DM.",c_what:"HERRAMIENTAS",w_h:"Qué hace",k1h:"Mapas de combate",k1p:"Cuadrícula con fichas, niebla de guerra, visión y áreas, para partidas presenciales o por foro.",k2h:"Mapa del mundo",k2p:"Pinta un mapa hexagonal, marca pueblos y mazmorras, enlaza cada lugar con su mapa de combate y revélalo a tus jugadores según exploran.",k3h:"Compártelo",k3p:"Publica una imagen en Discord o envía un enlace. Los jugadores ven solo lo que tú decides mostrar.",c_dm:"DIRECTORES DE JUEGO",d_h:"Para DMs",d_p:"La herramienta del DM es un único archivo HTML. Funciona sin conexión en tu navegador y guarda tus mapas en tu ordenador. Publicar en una web es opcional.",d_get:"Descargar la herramienta en GitHub",f1:"Sin cuenta, sin instalación, sin rastreo.",f2:"Webhooks de Discord por campaña, incluso sin web.",f3:"Aloja las páginas de jugadores en cualquier hosting con PHP.",f4:"De uso gratuito.",c_sup:"APOYO",u_h:"De uso gratuito",u_p:"Si te ahorra tiempo de preparación, puedes prepararme una poción. No hay nada bloqueado detrás.",u_b:"🧪 Prepárame una poción",ft_legal:"Aviso legal",ft_priv:"Sin cookies ni rastreo. Los mapas publicados se guardan por campaña tras un enlace secreto."}
+};
+function setLang(l){
+  document.documentElement.lang=l;
+  document.querySelectorAll('[data-i]').forEach(function(e){var v=T[l][e.getAttribute('data-i')];if(v!=null)e.textContent=v});
+  document.getElementById('bEN').setAttribute('aria-pressed',l==='en');
+  document.getElementById('bES').setAttribute('aria-pressed',l==='es');
+  try{localStorage.setItem('lang',l)}catch(e){}
+}
+document.getElementById('bEN').onclick=function(){setLang('en')};
+document.getElementById('bES').onclick=function(){setLang('es')};
+var saved=null;try{saved=localStorage.getItem('lang')}catch(e){}
+setLang(saved||((navigator.language||'en').slice(0,2)==='es'?'es':'en'));
+
+/* ---- hex drawing (flat-top, odd-q offset, same layout as the tool) ---- */
+var NS='http://www.w3.org/2000/svg',SQ=Math.sqrt(3);
+function el(p,n,a){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e}
+function hexPts(x,y,r){var s=[];for(var i=0;i<6;i++){var a=Math.PI/3*i;s.push((x+r*Math.cos(a)).toFixed(1)+','+(y+r*Math.sin(a)).toFixed(1))}return s.join(' ')}
+var COL={o:'#2a5a86',l:'#4a8bb5',p:'#a9c46c',f:'#4d8a4a',h:'#9a9a5a',m:'#7d7a78',d:'#dcc58a',s:'#5f7a55'};
+var GLY={f:'🌲',m:'🏔',h:'⛰'};
+function hexMap(svg,rows,r,opt){
+  var cols=rows[0].length,n=rows.length;
+  function pos(c,rw){return[r+r*1.5*c,r*SQ/2+r*SQ*(rw+.5*(c&1))]}
+  var W=r*1.5*(cols-1)+2*r,H=r*SQ*(n+.5);
+  svg.setAttribute('viewBox','0 0 '+W.toFixed(0)+' '+H.toFixed(0));
+  for(var rw=0;rw<n;rw++)for(var c=0;c<cols;c++){var p=pos(c,rw),t=rows[rw][c];
+    el(svg,'polygon',{points:hexPts(p[0],p[1],r),fill:COL[t],stroke:'rgba(0,0,0,.28)','stroke-width':1});
+    if(opt&&opt.glyph&&GLY[t]){var g=el(svg,'text',{x:p[0],y:p[1]+r*.22,'text-anchor':'middle','font-size':r*.62,opacity:.5});g.textContent=GLY[t]}}
+  if(opt&&opt.path){var d='';opt.path.forEach(function(q,i){var p=pos(q[0],q[1]);d+=(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)});
+    el(svg,'path',{d:d,fill:'none',stroke:'#e6c88a','stroke-width':Math.max(2,r*.12),'stroke-linecap':'round','stroke-linejoin':'round'})}
+  if(opt&&opt.river){var d2='';opt.river.forEach(function(q,i){var p=pos(q[0],q[1]);d2+=(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)});
+    el(svg,'path',{d:d2,fill:'none',stroke:'#5aa8e0','stroke-width':Math.max(2,r*.16),'stroke-linecap':'round','stroke-linejoin':'round'})}
+  if(opt&&opt.towns)opt.towns.forEach(function(q){var p=pos(q.c,q.r);el(svg,'circle',{cx:p[0],cy:p[1],r:r*.4,fill:'rgba(20,22,28,.85)',stroke:'#e9d8a6','stroke-width':1.5});
+    var g=el(svg,'text',{x:p[0],y:p[1]+r*.2,'text-anchor':'middle','font-size':r*.52});g.textContent=q.i;
+    if(q.n){var t=el(svg,'text',{x:p[0],y:p[1]+r*.95,'text-anchor':'middle','font-size':r*.38,'font-weight':'700',fill:'#fff',stroke:'rgba(10,12,16,.85)','stroke-width':3,'paint-order':'stroke'});t.textContent=q.n}});
+  if(opt&&opt.party){var p=pos(opt.party[0],opt.party[1]);el(svg,'circle',{cx:p[0],cy:p[1],r:r*.34,fill:'#ffd54a',stroke:'#fff','stroke-width':2});
+    var g=el(svg,'text',{x:p[0],y:p[1]+r*.14,'text-anchor':'middle','font-size':r*.4,fill:'#222'});g.textContent='⚔️'}
+  if(opt&&opt.fog)for(var rw2=0;rw2<n;rw2++)for(var c2=0;c2<cols;c2++)if(opt.fog(c2,rw2)){var q=pos(c2,rw2);el(svg,'polygon',{points:hexPts(q[0],q[1],r),fill:'rgba(10,14,22,.82)',stroke:'rgba(255,255,255,.06)','stroke-width':1})}
+  return pos;
+}
+var rows=['oooppphhmm','ooppffhmmm','oppfffphmh','oplpfspppd','oopppfpppd','ooopppppdd','oooopppddd'];
+hexMap(document.getElementById('heroMap'),rows,30,{glyph:true,
+  path:[[2,3],[3,3],[4,2],[5,2],[6,1]],river:[[4,0],[4,1],[3,2],[3,3],[2,4],[2,5],[1,6]],
+  towns:[{c:4,r:2,i:'🏘',n:'Millbrook'},{c:2,r:5,i:'🏠'}],party:[3,3],
+  fog:function(c,r){return c>=7||(r>=5&&c>=5)||(r<=1&&c>=6)}});
+
+/* small illustrations */
+(function(){var s=document.getElementById('ill1');
+  for(var y=0;y<5;y++)for(var x=0;x<9;x++){var f=x>=6;el(s,'rect',{x:12+x*22,y:8+y*22,width:22,height:22,fill:(x==4)?'#6b4f3a':'#c9a97a',stroke:'rgba(0,0,0,.25)','stroke-width':1})}
+  el(s,'rect',{x:12+6*22,y:8,width:3*22,height:5*22,fill:'rgba(10,14,22,.78)'});
+  [[1,1,'#2e86de'],[2,3,'#27ae60'],[5,2,'#c0392b']].forEach(function(t){el(s,'circle',{cx:12+t[0]*22+11,cy:8+t[1]*22+11,r:9,fill:t[2],stroke:'#fff','stroke-width':1.5})});
+  el(s,'circle',{cx:12+5*22+11,cy:8+2*22+11,r:34,fill:'rgba(224,176,74,.22)',stroke:'#e0b04a','stroke-width':1.5,'stroke-dasharray':'4 3'});
+  var t=el(s,'text',{x:12,y:124,'font-size':9,fill:'var(--mut)','font-family':'monospace'});t.textContent='AE 37 → AS 49'})();
+(function(){var s=document.getElementById('ill2');var g=el(s,'g',{transform:'translate(6,4) scale(.74)'});
+  hexMap(g,['ooppp','oppfh','ppfhm','ppppm'],24,{path:[[1,1],[2,1],[3,2]],towns:[{c:2,r:1,i:'🏰'}]});
+  el(s,'path',{d:'M128 56 L160 56',stroke:'var(--accent)','stroke-width':2,'stroke-dasharray':'4 3',fill:'none'});
+  for(var y=0;y<3;y++)for(var x=0;x<3;x++)el(s,'rect',{x:162+x*17,y:34+y*17,width:17,height:17,fill:'#c9a97a',stroke:'rgba(0,0,0,.25)'});
+  el(s,'circle',{cx:162+25,cy:34+25,r:6,fill:'#2e86de',stroke:'#fff','stroke-width':1})})();
+(function(){var s=document.getElementById('ill3');
+  el(s,'rect',{x:14,y:30,width:70,height:56,rx:6,fill:'#c9a97a',stroke:'rgba(0,0,0,.3)'});
+  var g=el(s,'g',{transform:'translate(20,36) scale(.46)'});hexMap(g,['opp','ppf','pfh'],20,{party:[1,1]});
+  el(s,'path',{d:'M92 58 L128 58',stroke:'var(--accent)','stroke-width':2,fill:'none'});el(s,'path',{d:'M122 52 L130 58 L122 64',stroke:'var(--accent)','stroke-width':2,fill:'none'});
+  el(s,'rect',{x:134,y:22,width:76,height:30,rx:8,fill:'#5865f2'});var a=el(s,'text',{x:172,y:41,'text-anchor':'middle','font-size':11,fill:'#fff','font-family':'sans-serif','font-weight':'600'});a.textContent='Discord';
+  el(s,'rect',{x:134,y:64,width:76,height:30,rx:8,fill:'none',stroke:'var(--mut)'});var b=el(s,'text',{x:172,y:83,'text-anchor':'middle','font-size':10,fill:'var(--mut)','font-family':'monospace'});b.textContent='play?t=…'})();
+})();
+</script>
+</body></html>

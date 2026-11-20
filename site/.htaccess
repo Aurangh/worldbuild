@@ -8,3 +8,8 @@ Options -Indexes
   Header set Referrer-Policy "no-referrer"
   Header set X-Content-Type-Options "nosniff"
 </IfModule>
+<IfModule mod_headers.c>
+  <Files "index.html">
+    Header unset X-Robots-Tag
+  </Files>
+</IfModule>
