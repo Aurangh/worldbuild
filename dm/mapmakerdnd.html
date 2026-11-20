@@ -1376,7 +1376,7 @@ async function siteCall(action,body){const b=siteBase(settings.site.url),k=(sett
   let r;try{r=await fetch(b+'/api.php?a='+action,{method:body?'POST':'GET',headers:Object.assign({'X-DM-Key':k},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined,cache:'no-store'})}
   catch(e){throw new Error('could not reach the site (check the address and your connection)')}
   let j=null;try{j=await r.json()}catch(e){}
-  if(!r.ok){const code=j&&j.error,t={'bad-key':'the DM key is wrong','server-not-configured':'the server still has the placeholder key in config.php','slow-down':'too many wrong tries, wait ten minutes','image-too-large':'the map image is larger than the server allows','snapshot-too-large':'the snapshot is too large'}[code];throw new Error(t||('the server answered '+(code||'HTTP '+r.status)))}
+  if(!r.ok){const code=j&&j.error,t={'bad-key':'the DM key is wrong','server-not-configured':'the server still has the placeholder key in config.php','slow-down':'too many wrong tries, wait ten minutes','image-too-large':'the map image is larger than the server allows','snapshot-too-large':'the snapshot is too large','not-yours':'that campaign belongs to another DM on this site (rename yours)','quota-campaigns':'you have reached the campaign limit on this site','quota-storage':'you have used all your storage on this site; unpublish some maps','owner-only':'that needs the owner key'}[code];throw new Error(t||('the server answered '+(code||'HTTP '+r.status)))}
   return j}
 async function ensureCamp(c){const r=campRec(c,true);if(r.cid&&r.token)return r;
   const j=await siteCall('campaigns'),f=(j.campaigns||[]).find(x=>x.name===c); // reuse a campaign already on the server under this name

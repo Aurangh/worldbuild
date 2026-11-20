@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><!-- SPDX-License-Identifier: MIT | Copyright (c) 2026 Rodrigo Díaz Morales | See LICENSE -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Admin · DM keys</title>
+<style>
+:root{--bg:#0f1520;--card:#192233;--line:#2a3548;--fg:#e7ecf4;--mut:#9aa7bb;--acc:#e0b04a;color-scheme:dark}
+@media (prefers-color-scheme:light){:root{--bg:#f4f6fa;--card:#fff;--line:#cdd6e3;--fg:#162033;--mut:#55637a;--acc:#9a6a0c;color-scheme:light}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;padding:20px max(16px,env(safe-area-inset-left))}
+main{max-width:860px;margin:0 auto}h1{font-size:22px;margin:0 0 4px}p.s{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+input,button{font:inherit;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+button{cursor:pointer}button.pri{background:var(--acc);border-color:var(--acc);color:#111;font-weight:600}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}input[type=number]{width:84px}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px 6px;border-top:1px solid var(--line);vertical-align:middle}th{color:var(--mut);font-weight:500;font-size:13px}
+.dis{opacity:.5}code{background:rgba(127,127,127,.18);padding:2px 5px;border-radius:5px;word-break:break-all}.err{color:#e5736a}.ok{color:#59b97a}
+</style></head><body><main>
+<h1>DM keys</h1><p class="s">Give each DM their own key. They paste your site address and their key into Publish in the DM tool. Keys are shown once; only a hash is stored.</p>
+<div class="card"><div class="row"><input id="ok" type="password" placeholder="Owner key (from config.php)" size="34" autocomplete="off"><button id="go" class="pri">Sign in</button><span id="st"></span></div></div>
+<div id="app" hidden>
+ <div class="card"><b>New DM</b><div class="row" style="margin-top:8px"><input id="nn" placeholder="Name (e.g. Alex)" size="18">
+  <label>campaigns <input id="nc" type="number" min="1" placeholder="def"></label><label>maps <input id="nm" type="number" min="1" placeholder="def"></label><label>MB <input id="nb" type="number" min="1" placeholder="def"></label>
+  <button id="mk" class="pri">Create key</button></div><div id="newkey" style="margin-top:10px"></div></div>
+ <div class="card"><b>DMs</b><div id="defs" class="s" style="margin:4px 0 8px"></div><table><thead><tr><th>Name</th><th>Campaigns</th><th>Storage</th><th>Limits (camp / maps per camp / MB)</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);let KEY='';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function call(a,body){const r=await fetch('api.php?a='+a,{method:body?'POST':'GET',headers:Object.assign({'X-DM-Key':KEY},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined,cache:'no-store'});let j=null;try{j=await r.json()}catch(e){}if(!r.ok)throw new Error((j&&j.error)||('HTTP '+r.status));return j}
+async function list(){const j=await call('dms');$('#defs').textContent='Defaults: '+j.defaults.max_campaigns+' campaigns, '+j.defaults.max_maps+' maps each, '+j.defaults.max_mb+' MB.';
+ $('#rows').innerHTML=j.dms.map(d=>'<tr class="'+(d.disabled?'dis':'')+'" data-id="'+d.id+'"><td>'+esc(d.name)+(d.disabled?' (disabled)':'')+'<br><small>'+d.id+'</small></td><td>'+d.campaigns+'</td><td>'+d.mb+' MB</td><td><input type="number" data-k="max_campaigns" value="'+d.max_campaigns+'"> <input type="number" data-k="max_maps" value="'+d.max_maps+'"> <input type="number" data-k="max_mb" value="'+d.max_mb+'"> <button data-a="save">Save</button></td><td><button data-a="tog">'+(d.disabled?'Enable':'Disable')+'</button> <button data-a="purge">Delete + data</button></td></tr>').join('')||'<tr><td colspan="5">No DMs yet.</td></tr>'}
+$('#go').onclick=async()=>{KEY=$('#ok').value.trim();try{await list();$('#app').hidden=false;$('#st').textContent='✓ signed in';$('#st').className='ok'}catch(e){$('#st').textContent=e.message==='owner-only'?'That is not the owner key':e.message==='bad-key'?'Wrong key':e.message;$('#st').className='err'}};
+$('#mk').onclick=async()=>{const b={name:$('#nn').value};for(const[k,i]of[['max_campaigns','#nc'],['max_maps','#nm'],['max_mb','#nb']])if($(i).value)b[k]=+$(i).value;
+ try{const j=await call('dm_create',b);$('#newkey').innerHTML='Key for <b>'+esc(b.name)+'</b> (copy it now, it will not be shown again):<br><code>'+esc(j.key)+'</code>';$('#nn').value='';await list()}catch(e){$('#newkey').innerHTML='<span class="err">'+esc(e.message)+'</span>'}};
+$('#rows').onclick=async e=>{const b=e.target.closest('button');if(!b)return;const tr=b.closest('tr'),id=tr.dataset.id;
+ try{if(b.dataset.a==='save'){const o={id};tr.querySelectorAll('input').forEach(i=>o[i.dataset.k]=+i.value);await call('dm_set',o)}
+ else if(b.dataset.a==='tog')await call('dm_set',{id,disabled:!tr.classList.contains('dis')});
+ else if(b.dataset.a==='purge'){if(!confirm('Delete this DM and every campaign and map they published? This cannot be undone.'))return;await call('dm_purge',{id})}
+ await list()}catch(err){alert(err.message)}};
+</script></main></body></html>

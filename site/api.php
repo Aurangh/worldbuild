@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 // ---------------------------------------------------------------------------
 // Map tracker API. One JSON file and one image per published map, overwritten on
-// every publish. Players can only read (a=snap, a=img). Everything else needs the DM key.
+// every publish. Players can only read (a=snap, a=img). Everything else needs a DM key
+// (the owner key from config.php, or a per-DM key issued from admin.html).
 // ---------------------------------------------------------------------------
 
 $CFG = require __DIR__ . '/config.php';
@@ -36,6 +37,7 @@ function init_data(string $DATA): void {
   if (!file_exists($ht)) @file_put_contents($ht, "Require all denied\n");
   ensure_dir($DATA . '/c');
   ensure_dir($DATA . '/rl');
+  ensure_dir($DATA . '/dms');
 }
 function write_atomic(string $path, string $bytes): void {
   $tmp = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
@@ -74,12 +76,48 @@ function rl_fail(string $DATA, string $bucket): void {
 }
 
 // ---- auth -----------------------------------------------------------------
-function require_dm(array $CFG, string $DATA): void {
-  $key = (string)($CFG['dm_key'] ?? '');
-  if ($key === '' || str_starts_with($key, 'CHANGE-ME') || strlen($key) < 32) out(503, ['error' => 'server-not-configured']);
+// Two kinds of key: the owner key in config.php (full access, owns every campaign made before DM keys existed)
+// and per-DM keys "<8 hex id>.<secret>" created from admin.html. DM records keep only a hash of the secret.
+function admin_key_ok(array $CFG): bool {
+  $k = (string)($CFG['dm_key'] ?? '');
+  return !($k === '' || str_starts_with($k, 'CHANGE-ME') || strlen($k) < 32);
+}
+function dm_defaults(array $CFG): array {
+  return array_merge(['max_campaigns' => 5, 'max_maps' => 20, 'max_mb' => 100], (array)($CFG['dm_defaults'] ?? []));
+}
+function dm_quota(array $CFG, ?array $rec, string $k): int {
+  $d = dm_defaults($CFG);
+  return isset($rec[$k]) && is_numeric($rec[$k]) ? (int)$rec[$k] : (int)$d[$k];
+}
+function require_dm(array $CFG, string $DATA): array {
+  $hasDms = (glob($DATA . '/dms/*.json') ?: []) !== [];
+  if (!admin_key_ok($CFG) && !$hasDms) out(503, ['error' => 'server-not-configured']);
   rl_block($DATA, 'dm', (int)$CFG['max_fail_dm']);
   $given = (string)($_SERVER['HTTP_X_DM_KEY'] ?? '');
-  if ($given === '' || !hash_equals($key, $given)) { rl_fail($DATA, 'dm'); out(401, ['error' => 'bad-key']); }
+  if ($given !== '') {
+    if (admin_key_ok($CFG) && hash_equals((string)$CFG['dm_key'], $given)) return ['id' => 'admin', 'admin' => true, 'name' => 'owner', 'rec' => null];
+    if (preg_match('/^([a-f0-9]{8})\.([A-Za-z0-9_-]{32,64})$/', $given, $m)) {
+      $rec = read_json($DATA . '/dms/' . $m[1] . '.json');
+      if ($rec && empty($rec['disabled']) && isset($rec['hash']) && hash_equals((string)$rec['hash'], hash('sha256', $m[2]))) {
+        return ['id' => $m[1], 'admin' => false, 'name' => (string)($rec['name'] ?? ''), 'rec' => $rec];
+      }
+    }
+  }
+  rl_fail($DATA, 'dm'); out(401, ['error' => 'bad-key']);
+}
+function owner_of(?array $camp): string { return (string)($camp['owner'] ?? 'admin'); }
+function may_touch(array $who, ?array $camp): bool { return $who['admin'] || ($camp !== null && owner_of($camp) === $who['id']); }
+function rm_tree(string $d): void {
+  foreach (glob($d . '/{,.}*', GLOB_BRACE) ?: [] as $f) { $n = basename($f); if ($n === '.' || $n === '..') continue; is_dir($f) ? rm_tree($f) : @unlink($f); }
+  @rmdir($d);
+}
+function dm_usage(string $DATA, string $id): array {
+  $n = 0; $bytes = 0;
+  foreach (glob($DATA . '/c/*/campaign.json') ?: [] as $f) {
+    $c = read_json($f); if (!$c || owner_of($c) !== $id) continue;
+    $n++; foreach (glob(dirname($f) . '/*') ?: [] as $x) if (is_file($x)) $bytes += filesize($x);
+  }
+  return [$n, $bytes];
 }
 // Resolve a player link "cid-secret" to its campaign, or answer with the same 404 for every kind of failure.
 function resolve_link(array $CFG, string $DATA, string $token): array {
@@ -160,14 +198,49 @@ if ($a === 'img') {
 // ===========================================================================
 // DM endpoints (need X-DM-Key)
 // ===========================================================================
-require_dm($CFG, $DATA);
+$WHO = require_dm($CFG, $DATA);
 
-if ($a === 'ping') out(200, ['ok' => true, 'time' => time()]);
+if ($a === 'ping') out(200, ['ok' => true, 'time' => time(), 'name' => $WHO['name'], 'admin' => $WHO['admin']]);
+
+// ---- owner only: manage DM keys (used by admin.html) ----------------------
+if (str_starts_with($a, 'dm_') || $a === 'dms') {
+  if (!$WHO['admin']) out(403, ['error' => 'owner-only']);
+  $post = ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST';
+  $put = function (string $id, array $rec) use ($DATA) { write_atomic($DATA . '/dms/' . $id . '.json', json_encode($rec, JSON_UNESCAPED_UNICODE)); };
+  $nums = function (array $b, array $rec) { foreach (['max_campaigns', 'max_maps', 'max_mb'] as $k) if (isset($b[$k]) && is_numeric($b[$k])) $rec[$k] = max(1, min(100000, (int)$b[$k])); return $rec; };
+  if ($a === 'dms') {
+    $list = [];
+    foreach (glob($DATA . '/dms/*.json') ?: [] as $f) {
+      $r = read_json($f); if (!$r) continue; $id = basename($f, '.json'); [$nc, $by] = dm_usage($DATA, $id);
+      $list[] = ['id' => $id, 'name' => $r['name'] ?? '', 'created' => $r['created'] ?? 0, 'disabled' => !empty($r['disabled']), 'campaigns' => $nc, 'mb' => round($by / 1048576, 1),
+        'max_campaigns' => dm_quota($CFG, $r, 'max_campaigns'), 'max_maps' => dm_quota($CFG, $r, 'max_maps'), 'max_mb' => dm_quota($CFG, $r, 'max_mb')];
+    }
+    usort($list, fn($x, $y) => $x['created'] <=> $y['created']);
+    out(200, ['dms' => $list, 'defaults' => dm_defaults($CFG)]);
+  }
+  if ($a === 'dm_create' && $post) {
+    $b = body_json(); $name = mb_substr(trim((string)($b['name'] ?? '')), 0, 60);
+    if ($name === '') out(400, ['error' => 'name']);
+    $id = bin2hex(random_bytes(4)); $secret = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
+    $put($id, $nums($b, ['name' => $name, 'hash' => hash('sha256', $secret), 'created' => time()]));
+    out(200, ['ok' => true, 'id' => $id, 'key' => $id . '.' . $secret]); // shown once, only the hash is kept
+  }
+  $id = (string)(($post ? (body_json()['id'] ?? '') : ($_GET['id'] ?? '')));
+  if (!preg_match('/^[a-f0-9]{8}$/', $id)) out(400, ['error' => 'bad-id']);
+  $rec = read_json($DATA . '/dms/' . $id . '.json'); if (!$rec) out(404, ['error' => 'dm']);
+  if ($a === 'dm_set' && $post) { $b = body_json(); if (isset($b['disabled'])) $rec['disabled'] = (bool)$b['disabled']; $rec = $nums($b, $rec); $put($id, $rec); out(200, ['ok' => true]); }
+  if ($a === 'dm_purge' && $post) {
+    foreach (glob($DATA . '/c/*/campaign.json') ?: [] as $f) { $c = read_json($f); if ($c && owner_of($c) === $id) rm_tree(dirname($f)); }
+    @unlink($DATA . '/dms/' . $id . '.json'); out(200, ['ok' => true]);
+  }
+  out(404, ['error' => 'unknown-action']);
+}
 
 if ($a === 'campaigns') {
   $list = [];
   foreach (glob($DATA . '/c/*/campaign.json') ?: [] as $f) {
     $c = read_json($f); if (!$c) continue;
+    if (!may_touch($WHO, $c)) continue;
     $cid = basename(dirname($f));
     $list[] = ['cid' => $cid, 'name' => $c['name'], 'token' => $cid . '-' . $c['secret'], 'maps' => campaign_maps(dirname($f))];
   }
@@ -202,7 +275,16 @@ if ($a === 'publish' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
   $camp = read_json("$dir/campaign.json");
   $created = false;
-  if (!$camp) { $camp = ['name' => $name, 'secret' => new_secret(), 'created' => time()]; $created = true; }
+  if ($camp && !may_touch($WHO, $camp)) out(403, ['error' => 'not-yours']);
+  [$nc, $used] = $WHO['admin'] ? [0, 0] : dm_usage($DATA, $WHO['id']);
+  if (!$camp) {
+    if (!$WHO['admin'] && $nc >= dm_quota($CFG, $WHO['rec'], 'max_campaigns')) out(403, ['error' => 'quota-campaigns']);
+    $camp = ['name' => $name, 'secret' => new_secret(), 'created' => time(), 'owner' => $WHO['id']]; $created = true;
+  }
+  if (!$WHO['admin']) {
+    $old = 0; foreach (["$dir/$mid.img", "$dir/$mid.json"] as $x) if (is_file($x)) $old += filesize($x);
+    if ($used - $old + strlen($bytes) + strlen($snapJson) > dm_quota($CFG, $WHO['rec'], 'max_mb') * 1048576) out(413, ['error' => 'quota-storage']);
+  }
   $camp['name'] = $name;
   write_atomic("$dir/campaign.json", json_encode($camp));
 
@@ -213,7 +295,7 @@ if ($a === 'publish' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   // keep storage bounded: drop the oldest published maps beyond the limit
   // the world map (mid starting with 'w') is never evicted; only ordinary battle maps count toward the limit
   $maps = array_values(array_filter(campaign_maps($dir), fn($m) => !str_starts_with($m['mid'], 'w')));
-  $limit = max(1, (int)$CFG['max_maps']);
+  $limit = max(1, $WHO['admin'] ? (int)$CFG['max_maps'] : dm_quota($CFG, $WHO['rec'], 'max_maps'));
   foreach (array_slice($maps, $limit) as $old) delete_map($dir, $old['mid']);
 
   flock($lock, LOCK_UN); fclose($lock);
@@ -227,6 +309,7 @@ if ($a === 'rotate' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   $dir = camp_dir($DATA, $cid);
   $camp = read_json("$dir/campaign.json");
   if (!$camp) out(404, ['error' => 'campaign']);
+  if (!may_touch($WHO, $camp)) out(403, ['error' => 'not-yours']);
   $camp['secret'] = new_secret();
   write_atomic("$dir/campaign.json", json_encode($camp));
   out(200, ['ok' => true, 'cid' => $cid, 'token' => $cid . '-' . $camp['secret']]);
@@ -236,6 +319,8 @@ if ($a === 'unpublish' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   $b = body_json();
   $cid = (string)($b['cid'] ?? ''); $mid = (string)($b['mid'] ?? '');
   if (!valid_cid($cid) || !valid_mid($mid)) out(400, ['error' => 'bad-id']);
+  $camp = read_json(camp_dir($DATA, $cid) . '/campaign.json');
+  if ($camp && !may_touch($WHO, $camp)) out(403, ['error' => 'not-yours']);
   delete_map(camp_dir($DATA, $cid), $mid);
   out(200, ['ok' => true]);
 }
