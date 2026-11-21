@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en"><head><!-- SPDX-License-Identifier: MIT | Copyright (c) 2026 Rodrigo Díaz Morales | See LICENSE -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mapmaker guide · Auranghzeb</title>
+<meta name="description" content="Step-by-step guide for DMs: battle maps, fog, Discord, publishing to players, the hex world map and linking places to battle maps.">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<style>
+/* Layout: one column, 960px max. Cartographic table: slate-blue ground, hex grid as the recurring motif, section headers carry hex coordinates (the tool's own 03.07 labels). */
+:root{
+  --bg:#0f1520; --bg2:#151d2b; --card:#192233; --line:#2a3548; --fg:#e7ecf4; --mut:#9aa7bb;
+  --accent:#e0b04a; --accent-fg:#1a1405; --water:#4f8fbf; --link:#7fb4e6;
+  --f-head:ui-rounded,"Segoe UI",system-ui,sans-serif; --f-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --f-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --hexline:rgba(127,180,230,.07);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
+  --bg:#f4f6fa; --bg2:#e9eef5; --card:#ffffff; --line:#cdd6e3; --fg:#162033; --mut:#55637a;
+  --accent:#9a6a0c; --accent-fg:#ffffff; --water:#2f6fa3; --link:#1d5f9f; --hexline:rgba(30,80,140,.08); color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f4f6fa; --bg2:#e9eef5; --card:#ffffff; --line:#cdd6e3; --fg:#162033; --mut:#55637a;
+  --accent:#9a6a0c; --accent-fg:#ffffff; --water:#2f6fa3; --link:#1d5f9f; --hexline:rgba(30,80,140,.08); color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--f-body);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:960px;margin:0 auto}
+a{color:var(--link)}
+h1,h2,h3{font-family:var(--f-head);line-height:1.15;margin:0;text-wrap:balance}
+.mock-unused{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--accent);color:var(--accent-fg);font:500 12px/1 var(--f-mono);padding:7px 12px;text-align:center;letter-spacing:.04em;margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px)))}
+nav{display:flex;align-items:center;gap:16px;padding-block:18px;flex-wrap:wrap}
+.brand{font:700 18px var(--f-head);letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.brand svg{width:26px;height:26px}
+nav .sp{flex:1}
+.lang{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.lang button{font:600 12px var(--f-mono);background:transparent;color:var(--mut);border:0;padding:6px 10px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.lang button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.coord{font:400 12px var(--f-mono);color:var(--mut);letter-spacing:.08em;display:block;margin-bottom:10px}
+section{padding-block:56px;border-top:1px solid var(--line);position:relative}
+.hero{border-top:0;padding-block:34px 64px;display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(34px,5.4vw,56px);letter-spacing:-.02em}
+.hero p.lead{font-size:18px;color:var(--mut);max-width:34em;margin:18px 0 26px}
+.btns{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;font:600 15px var(--f-body);text-decoration:none;border-radius:10px;padding:12px 18px;border:1px solid var(--line);color:var(--fg);background:var(--card)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.map{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px}
+.map svg{display:block;width:100%;height:auto}
+.cap{font:400 12px var(--f-mono);color:var(--mut);padding:8px 4px 0}
+h2{font-size:clamp(24px,3.4vw,32px);margin-bottom:12px}
+.players{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.players p{color:var(--mut);max-width:36em;margin:0 0 12px}
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.steps li{display:grid;grid-template-columns:auto 1fr;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.steps b{font:700 13px var(--f-mono);color:var(--accent);padding-top:3px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card svg{width:100%;height:auto;border-radius:8px;background:var(--bg2)}
+.card h3{font-size:18px}.card p{margin:0;color:var(--mut);font-size:15px}
+.dlead{color:var(--mut);max-width:40em;margin:0 0 22px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}
+.opt{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.opt h3{font-size:18px}.opt p{margin:0;color:var(--mut);font-size:15px;flex:1}
+.facts{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.facts li{border-left:2px solid var(--accent);padding:2px 0 2px 12px;color:var(--mut)}
+.support{text-align:left;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
+.support p{margin:0;color:var(--mut);max-width:36em}
+footer{border-top:1px solid var(--line);padding-block:28px 40px;color:var(--mut);font-size:14px;display:flex;gap:18px 28px;flex-wrap:wrap;align-items:center}
+footer .sp{flex:1}
+code,.mono{font-family:var(--f-mono);font-size:.92em}
+.note{font:400 12px var(--f-mono);color:var(--mut);margin-top:10px}
+@media (max-width:820px){.hero,.players,.opts,.support{grid-template-columns:1fr}.cards{grid-template-columns:1fr}section{padding-block:44px}}
+@media (prefers-reduced-motion:no-preference){.btn{transition:transform .12s}.btn:hover{transform:translateY(-1px)}}
+.brand{font:700 18px var(--f-head);letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.brand svg{width:26px;height:26px}
+nav .sp{flex:1}
+.lang{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.lang button{font:600 12px var(--f-mono);background:transparent;color:var(--mut);border:0;padding:6px 10px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.lang button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.coord{font:400 12px var(--f-mono);color:var(--mut);letter-spacing:.08em;display:block;margin-bottom:10px}
+.btns{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;font:600 15px var(--f-body);text-decoration:none;border-radius:10px;padding:12px 18px;border:1px solid var(--line);color:var(--fg);background:var(--card)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+footer{border-top:1px solid var(--line);padding-block:28px 40px;color:var(--mut);font-size:14px;display:flex;gap:18px 28px;flex-wrap:wrap;align-items:center}
+footer .sp{flex:1}
+
+@media (prefers-reduced-motion:no-preference){.btn{transition:transform .12s}.btn:hover{transform:translateY(-1px)}}
+
+.hdr{display:flex;align-items:center;gap:16px;padding-block:18px;flex-wrap:wrap}
+.hdr a.back{color:var(--mut);text-decoration:none;font-size:14px}
+.title{padding-block:20px 8px}.title h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.02em}
+.title p{color:var(--mut);font-size:18px;max-width:38em;margin:12px 0 0}
+.layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;align-items:start;padding-top:24px}
+.toc{position:sticky;top:16px;font-size:14px}
+.toc ol{list-style:none;margin:0;padding:0;gap:2px}
+html[lang=en] .toc ol[data-l=en],html[lang=es] .toc ol[data-l=es]{display:grid}
+.toc a{display:block;padding:5px 10px;border-left:2px solid var(--line);color:var(--mut);text-decoration:none}
+.toc a:hover{color:var(--fg);border-color:var(--accent)}
+.toc b{font:700 12px var(--f-mono);color:var(--accent);margin-right:6px}
+.toc select{display:none;width:100%;font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px}
+article section{padding-block:44px 8px;border-top:1px solid var(--line)}article section:first-child{border-top:0;padding-top:8px}
+article h2{font-size:clamp(24px,3.4vw,30px);margin-bottom:6px;scroll-margin-top:16px}
+article h3{font-size:18px;margin:26px 0 6px}
+article p,article li{color:var(--mut);max-width:44em}article p{margin:10px 0}
+article li{margin:6px 0}article ol,article ul{padding-left:22px;margin:10px 0}
+article strong,article li b,article p b{color:var(--fg);font-weight:600}
+kbd,code{font-family:var(--f-mono);font-size:.88em;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--fg)}
+figure{margin:18px 0;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px}
+figure img{display:block;width:100%;height:auto;border-radius:8px}
+figure.narrow{max-width:520px}figure.mid{max-width:720px}
+figcaption{font:400 12px var(--f-mono);color:var(--mut);padding:8px 4px 2px}
+.call{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--card);border-radius:10px;padding:12px 16px;margin:16px 0;max-width:44em}
+.call p{margin:0;color:var(--fg)}.call .k{font:700 12px var(--f-mono);letter-spacing:.06em;color:var(--accent);display:block;margin-bottom:4px}
+.call.warn{border-left-color:#d9694a}.call.warn .k{color:#d9694a}.call.see{border-left-color:var(--water)}.call.see .k{color:var(--water)}
+.done{font:600 14px var(--f-body);color:var(--fg);margin-top:18px;padding:10px 14px;border:1px dashed var(--line);border-radius:10px;max-width:44em}
+.done span{color:var(--accent)}
+[data-l]{display:none}html[lang=en] [data-l=en],html[lang=es] [data-l=es]{display:block}
+html[lang=en] span[data-l=en],html[lang=es] span[data-l=es],html[lang=en] b[data-l=en],html[lang=es] b[data-l=es]{display:inline}
+.cta{margin-top:56px}
+figure.tiny{max-width:210px}
+@media (max-width:860px){.layout{grid-template-columns:1fr;gap:12px}.toc{position:static}html .toc ol[data-l]{display:none!important}.toc select{display:block}}
+</style></head><body>
+<div class="wrap">
+<div class="hdr"><a class="brand" href="./" style="text-decoration:none;color:inherit"><svg viewBox="0 0 26 26" aria-hidden="true" width="26" height="26"><polygon points="20.5,13 16.75,19.5 9.25,19.5 5.5,13 9.25,6.5 16.75,6.5" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="13" cy="13" r="2.6" fill="var(--accent)"/></svg>Auranghzeb</a>
+<a class="back" href="./" data-t="back">← Home</a><span class="sp" style="flex:1"></span>
+<div class="lang" role="group" aria-label="Language"><button id="bEN" aria-pressed="true">EN</button><button id="bES" aria-pressed="false">ES</button></div></div>
+<header class="title"><span class="coord">00.00 · <span data-t="guide">GUIDE</span></span>
+<div data-l="en"><h1>Mapmaker guide</h1><p>From a blank grid to a world map your players can open. Each chapter ends with something you have done.</p></div>
+<div data-l="es"><h1>Guía del mapmaker</h1><p>De una cuadrícula en blanco a un mapa del mundo que tus jugadores pueden abrir. Cada capítulo termina con algo que ya has hecho. Los botones de la herramienta están en inglés, tal como aparecen en pantalla.</p></div></header>
+<div class="layout">
+<nav class="toc" aria-label="Contents"><ol data-l="en"><li><a href="#c1"><b>01</b>Get started</a></li><li><a href="#c2"><b>02</b>Your first battle map</a></li><li><a href="#c3"><b>03</b>Fog, vision and areas</a></li><li><a href="#c4"><b>04</b>Encounters</a></li><li><a href="#c5"><b>05</b>Share on Discord</a></li><li><a href="#c6"><b>06</b>Publish to a site</a></li><li><a href="#c7"><b>07</b>The world map</a></li><li><a href="#c8"><b>08</b>Link places to battle maps</a></li><li><a href="#c9"><b>09</b>Reveal and travel</a></li><li><a href="#c10"><b>10</b>Troubleshooting</a></li></ol><ol data-l="es"><li><a href="#c1"><b>01</b>Primeros pasos</a></li><li><a href="#c2"><b>02</b>Tu primer mapa de combate</a></li><li><a href="#c3"><b>03</b>Niebla, visión y áreas</a></li><li><a href="#c4"><b>04</b>Encuentros</a></li><li><a href="#c5"><b>05</b>Compartir en Discord</a></li><li><a href="#c6"><b>06</b>Publicar en una web</a></li><li><a href="#c7"><b>07</b>El mapa del mundo</a></li><li><a href="#c8"><b>08</b>Enlazar lugares con mapas de combate</a></li><li><a href="#c9"><b>09</b>Revelar y viajar</a></li><li><a href="#c10"><b>10</b>Solución de problemas</a></li></ol>
+<select id="tocSel" aria-label="Chapters"></select></nav>
+<article><section id="c1"><span class="coord">01.00</span><div data-l="en"><h2>Get started</h2><p>The mapmaker is a single HTML file. There is nothing to install and no account to create.</p>
+<ol>
+<li>Download <code>mapmakerdnd.html</code> from the <a href="https://github.com/Aurangh/worldbuild/tree/main/dm">dm folder on GitHub</a> (open the file, then use the download button).</li>
+<li>Open it in Chrome, Edge, Firefox or Safari. It works offline.</li>
+<li>You will see the title and size boxes and the toolbar at the top, the tools on the left, the map in the middle, and the combatants, log and traps on the right.</li>
+</ol><figure class=""><img src="guide-img/g01-start.webp" alt="" data-alt-en="The mapmaker on first open: an empty 40 × 24 grid." data-alt-es="El mapmaker al abrirlo por primera vez: una cuadrícula vacía de 40 × 24." loading="lazy" width="1000" height="625"><figcaption data-l="en">The mapmaker on first open: an empty 40 × 24 grid.</figcaption><figcaption data-l="es">El mapmaker al abrirlo por primera vez: una cuadrícula vacía de 40 × 24.</figcaption></figure><div class="call warn" data-l="en"><span class="k">CAREFUL</span><p>Your maps are stored inside the browser, on this computer. Clearing the browser data removes them, and in some browsers a copy of the file kept in another folder starts with an empty list. Press <b>JSON ⬇</b> now and then to save a backup file; <b>JSON ⬆</b> loads it back.</p></div><div class="call warn" data-l="es"><span class="k">OJO</span><p>Tus mapas se guardan dentro del navegador, en este ordenador. Si borras los datos del navegador desaparecen, y en algunos navegadores una copia del archivo en otra carpeta empieza con la lista vacía. Pulsa <b>JSON ⬇</b> de vez en cuando para guardar una copia de seguridad; <b>JSON ⬆</b> la vuelve a cargar.</p></div><p class="done"><span>✓</span> You have the tool open and know where your maps are kept.</p></div><div data-l="es"><h2>Primeros pasos</h2><p>El mapmaker es un único archivo HTML. No hay nada que instalar ni cuenta que crear.</p>
+<ol>
+<li>Descarga <code>mapmakerdnd.html</code> desde la <a href="https://github.com/Aurangh/worldbuild/tree/main/dm">carpeta dm de GitHub</a> (abre el archivo y usa el botón de descarga).</li>
+<li>Ábrelo en Chrome, Edge, Firefox o Safari. Funciona sin conexión.</li>
+<li>Verás los cuadros de título y tamaño y la barra de botones arriba, las herramientas a la izquierda, el mapa en el centro, y los combatientes, el registro y las trampas a la derecha.</li>
+</ol><p class="done"><span>✓</span> Tienes la herramienta abierta y sabes dónde se guardan tus mapas.</p></div></section><section id="c2"><span class="coord">02.00</span><div data-l="en"><h2>Your first battle map</h2><h3>Draw the map</h3>
+<ol>
+<li>Type a name in the title box at the top left. Set the size in squares (columns × rows) and press <b>Resize</b>.</li>
+<li>In the <b>Terrain palette</b> (bottom of the left column) pick a swatch. Then use <b>Paint</b> (<kbd>B</kbd>) for single squares, <b>Rectangle</b> (<kbd>R</kbd>) for blocks, or <b>Fill</b> (<kbd>G</kbd>) for a closed area. Swatches such as rock and wall block sight; their tooltip says so.</li>
+<li>Prefer a picture? Press <b>🖼 Import map</b>, choose the image, mark the part that contains the grid and enter how many columns and rows it has.</li>
+</ol><figure class="tiny"><img src="guide-img/g04-tools.webp" alt="" data-alt-en="The tools column. Letters in grey are keyboard shortcuts." data-alt-es="La columna de herramientas. Las letras en gris son atajos de teclado." loading="lazy" width="160" height="722"><figcaption data-l="en">The tools column. Letters in grey are keyboard shortcuts.</figcaption><figcaption data-l="es">La columna de herramientas. Las letras en gris son atajos de teclado.</figcaption></figure><h3>Add creatures</h3>
+<ol>
+<li>In <b>Add combatant</b> (right column) enter a name, a letter for the token, a colour, a size, initiative, AC and HP. Tick <b>PC</b> for player characters, then press <b>Add combatant</b>.</li>
+<li>Open the creature's row with ▸, press <b>📍</b>, then click a square on the map to place it.</li>
+<li>With <b>Move</b> (<kbd>V</kbd>) drag tokens around. <b>Next ▶</b> passes the turn in initiative order and <b>Reset</b> starts the round again.</li>
+</ol><figure class=""><img src="guide-img/g03-map-gm.webp" alt="" data-alt-en="A small encounter: stream, walls, three PCs, three goblins and fog on the right." data-alt-es="Un encuentro pequeño: arroyo, muros, tres PJ, tres goblins y niebla a la derecha." loading="lazy" width="1000" height="625"><figcaption data-l="en">A small encounter: stream, walls, three PCs, three goblins and fog on the right.</figcaption><figcaption data-l="es">Un encuentro pequeño: arroyo, muros, tres PJ, tres goblins y niebla a la derecha.</figcaption></figure><h3>See what your players see</h3>
+<p>The <b>GM mode</b> button at the top switches to the players' view. <b>⬅ back to GM</b> returns.</p><figure class=""><img src="guide-img/g06-player-view.webp" alt="" data-alt-en="The players&#x27; view of the same map: unexplored fog is opaque and enemy tokens in it are hidden." data-alt-es="La vista de los jugadores del mismo mapa: la niebla sin explorar es opaca y los enemigos dentro no se ven." loading="lazy" width="1000" height="625"><figcaption data-l="en">The players' view of the same map: unexplored fog is opaque and enemy tokens in it are hidden.</figcaption><figcaption data-l="es">La vista de los jugadores del mismo mapa: la niebla sin explorar es opaca y los enemigos dentro no se ven.</figcaption></figure><div class="call " data-l="en"><span class="k">TIP</span><p>Every tool has a single-letter shortcut: <kbd>V</kbd> move, <kbd>M</kbd> measure, <kbd>A</kbd> area of effect, <kbd>B</kbd> paint, <kbd>R</kbd> rectangle, <kbd>G</kbd> fill, <kbd>F</kbd> fog, <kbd>U</kbd> unfog, <kbd>E</kbd> erase.</p></div><div class="call " data-l="es"><span class="k">CONSEJO</span><p>Cada herramienta tiene un atajo de una letra: <kbd>V</kbd> mover, <kbd>M</kbd> medir, <kbd>A</kbd> área de efecto, <kbd>B</kbd> pintar, <kbd>R</kbd> rectángulo, <kbd>G</kbd> rellenar, <kbd>F</kbd> niebla, <kbd>U</kbd> quitar niebla, <kbd>E</kbd> borrar.</p></div><p class="done"><span>✓</span> You have a map with terrain, creatures and a turn order.</p></div><div data-l="es"><h2>Tu primer mapa de combate</h2><h3>Dibuja el mapa</h3>
+<ol>
+<li>Escribe un nombre en el cuadro de título, arriba a la izquierda. Fija el tamaño en casillas (columnas × filas) y pulsa <b>Resize</b>.</li>
+<li>En la <b>Terrain palette</b> (parte baja de la columna izquierda) elige una muestra de color. Después usa <b>Paint</b> (<kbd>B</kbd>) para casillas sueltas, <b>Rectangle</b> (<kbd>R</kbd>) para bloques o <b>Fill</b> (<kbd>G</kbd>) para un área cerrada. Muestras como roca y muro bloquean la vista; su descripción lo indica.</li>
+<li>¿Prefieres una imagen? Pulsa <b>🖼 Import map</b>, elige la imagen, marca la parte que contiene la cuadrícula e indica cuántas columnas y filas tiene.</li>
+</ol><h3>Añade criaturas</h3>
+<ol>
+<li>En <b>Add combatant</b> (columna derecha) escribe nombre, una letra para la ficha, color, tamaño, iniciativa, CA y PG. Marca <b>PC</b> para los personajes de jugador y pulsa <b>Add combatant</b>.</li>
+<li>Abre la fila de la criatura con ▸, pulsa <b>📍</b> y haz clic en una casilla del mapa para colocarla.</li>
+<li>Con <b>Move</b> (<kbd>V</kbd>) arrastra las fichas. <b>Next ▶</b> pasa el turno según la iniciativa y <b>Reset</b> reinicia la ronda.</li>
+</ol><h3>Mira lo que ven tus jugadores</h3>
+<p>El botón <b>GM mode</b> de arriba cambia a la vista de los jugadores. <b>⬅ back to GM</b> vuelve.</p><p class="done"><span>✓</span> Tienes un mapa con terreno, criaturas y orden de turnos.</p></div></section><section id="c3"><span class="coord">03.00</span><div data-l="en"><h2>Fog, vision and areas</h2><h3>Fog</h3>
+<ul>
+<li><b>Fog</b> (<kbd>F</kbd>) hides squares and <b>Unfog</b> (<kbd>U</kbd>) reveals them. With <b>Rectangle</b>, set the <b>fills</b> menu to <i>fog</i> to cover a whole block in one drag.</li>
+<li>Tick <b>auto-reveal (PC vision)</b> and the fog around a PC clears whenever it moves. <b>👁 Reveal from PCs</b> does it once, right now.</li>
+<li>Set <b>Ambient</b> light to bright, dim or dark for areas outside any room. In the players' view each player can choose Normal, Low-light or Darkvision.</li>
+</ul><div class="call see" data-l="en"><span class="k">WHAT PLAYERS SEE</span><p>Fog is opaque in the players' view and in every image you share, so unexplored terrain stays hidden. Tokens inside fog are not shown to them.</p></div><div class="call see" data-l="es"><span class="k">LO QUE VEN LOS JUGADORES</span><p>La niebla es opaca en la vista de los jugadores y en cualquier imagen que compartas, así que el terreno sin explorar sigue oculto. Las fichas dentro de la niebla no se les muestran.</p></div><h3>Share only part of the map</h3>
+<p>Press <b>✂ Share area</b> and drag a rectangle. Players, PNG exports and Discord posts then show only that part. The <b>Showing</b> menu returns to the whole map.</p>
+<h3>Measure and areas of effect</h3>
+<p><b>Measure</b> (<kbd>M</kbd>) gives the distance between two points. <b>AoE</b> (<kbd>A</kbd>) places a burst or another template of the size you choose and lists the creatures it catches.</p><figure class=""><img src="guide-img/g08-aoe.webp" alt="" data-alt-en="A 20 ft burst on the goblins. The tool lists who is caught." data-alt-es="Una explosión de 20 pies sobre los goblins. La herramienta indica a quién alcanza." loading="lazy" width="766" height="622"><figcaption data-l="en">A 20 ft burst on the goblins. The tool lists who is caught.</figcaption><figcaption data-l="es">Una explosión de 20 pies sobre los goblins. La herramienta indica a quién alcanza.</figcaption></figure><h3>Rooms, traps and labels</h3>
+<p><b>Room</b> (<kbd>O</kbd>) outlines a room so you can override its lighting and deploy its enemies. <b>Trap</b> (<kbd>P</kbd>): fill in the details, then click a square or drag an area. <b>Label</b> (<kbd>T</kbd>) writes text on the map.</p><p class="done"><span>✓</span> You can hide, reveal and share exactly the part of the map you want.</p></div><div data-l="es"><h2>Niebla, visión y áreas</h2><h3>Niebla</h3>
+<ul>
+<li><b>Fog</b> (<kbd>F</kbd>) oculta casillas y <b>Unfog</b> (<kbd>U</kbd>) las revela. Con <b>Rectangle</b>, pon el menú <b>fills</b> en <i>fog</i> para cubrir un bloque entero de un arrastre.</li>
+<li>Marca <b>auto-reveal (PC vision)</b> y la niebla alrededor de un PJ se despeja cada vez que se mueve. <b>👁 Reveal from PCs</b> lo hace una vez, ahora mismo.</li>
+<li>Fija la luz <b>Ambient</b> en bright, dim o dark para las zonas fuera de cualquier sala. En la vista de jugadores cada uno puede elegir Normal, Low-light o Darkvision.</li>
+</ul><h3>Comparte solo una parte del mapa</h3>
+<p>Pulsa <b>✂ Share area</b> y arrastra un rectángulo. Los jugadores, las exportaciones PNG y los envíos a Discord muestran solo esa parte. El menú <b>Showing</b> vuelve al mapa completo.</p>
+<h3>Medir y áreas de efecto</h3>
+<p><b>Measure</b> (<kbd>M</kbd>) da la distancia entre dos puntos. <b>AoE</b> (<kbd>A</kbd>) coloca una explosión u otra plantilla del tamaño que elijas e indica qué criaturas alcanza.</p><h3>Salas, trampas y etiquetas</h3>
+<p><b>Room</b> (<kbd>O</kbd>) delimita una sala para cambiar su iluminación y desplegar a sus enemigos. <b>Trap</b> (<kbd>P</kbd>): rellena los detalles y haz clic en una casilla o arrastra un área. <b>Label</b> (<kbd>T</kbd>) escribe texto sobre el mapa.</p><p class="done"><span>✓</span> Puedes ocultar, revelar y compartir justo la parte del mapa que quieras.</p></div></section><section id="c4"><span class="coord">04.00</span><div data-l="en"><h2>Encounters</h2><ul>
+<li><b>🐉 Builder</b> keeps a bestiary. Paste a one-line stat block into the box at the bottom (the box shows the format) and press <b>+ add to bestiary</b>. Set the party size and average level and the encounter level (EL) updates as you add creatures. <b>Add &amp; deploy</b> puts them on the map.</li>
+<li><b>📖 Encounter</b> opens a notes document with an overview and one section per room. Text under a <code>## Players</code> heading is the part players may see; everything else stays private.</li>
+<li><b>🏠 Rooms</b> opens the same document at the rooms.</li>
+</ul><figure class="mid"><img src="guide-img/g09-builder.webp" alt="" data-alt-en="The encounter builder with its bestiary on the left and the draft encounter on the right." data-alt-es="El constructor de encuentros: bestiario a la izquierda y borrador del encuentro a la derecha." loading="lazy" width="920" height="692"><figcaption data-l="en">The encounter builder with its bestiary on the left and the draft encounter on the right.</figcaption><figcaption data-l="es">El constructor de encuentros: bestiario a la izquierda y borrador del encuentro a la derecha.</figcaption></figure><figure class="mid"><img src="guide-img/g10-encounter.webp" alt="" data-alt-en="The encounter document. A &quot;GM only&quot; tag shows while it has no Players section." data-alt-es="El documento del encuentro. Una etiqueta &quot;GM only&quot; aparece mientras no tiene sección Players." loading="lazy" width="1000" height="635"><figcaption data-l="en">The encounter document. A "GM only" tag shows while it has no Players section.</figcaption><figcaption data-l="es">El documento del encuentro. Una etiqueta "GM only" aparece mientras no tiene sección Players.</figcaption></figure><p class="done"><span>✓</span> You have a prepared encounter with its notes.</p></div><div data-l="es"><h2>Encuentros</h2><ul>
+<li><b>🐉 Builder</b> guarda un bestiario. Pega un bloque de estadísticas de una línea en el cuadro inferior (el cuadro muestra el formato) y pulsa <b>+ add to bestiary</b>. Indica el tamaño del grupo y el nivel medio y el nivel de encuentro (EL) se actualiza al añadir criaturas. <b>Add &amp; deploy</b> las coloca en el mapa.</li>
+<li><b>📖 Encounter</b> abre un documento de notas con un resumen y una sección por sala. El texto bajo un encabezado <code>## Players</code> es lo que pueden ver los jugadores; todo lo demás es privado.</li>
+<li><b>🏠 Rooms</b> abre el mismo documento en las salas.</li>
+</ul><p class="done"><span>✓</span> Tienes un encuentro preparado con sus notas.</p></div></section><section id="c5"><span class="coord">05.00</span><div data-l="en"><h2>Share on Discord</h2><ol>
+<li>In Discord open the channel settings, go to <b>Integrations → Webhooks</b>, create a webhook and copy its URL.</li>
+<li>In the mapmaker press <b>💬 Discord</b>, paste the URL and press <b>Test</b>. Every campaign has its own webhook.</li>
+<li>Use <b>📤 Post round (map + log)</b>, <b>Post description</b> or <b>Post initiative</b>. Maps are cropped to the area you are showing.</li>
+</ol><figure class="narrow"><img src="guide-img/g11-discord.webp" alt="" data-alt-en="The Discord panel." data-alt-es="El panel de Discord." loading="lazy" width="560" height="242"><figcaption data-l="en">The Discord panel.</figcaption><figcaption data-l="es">El panel de Discord.</figcaption></figure><p>For play-by-post forums, <b>✍ Post</b> opens a composer with templates, creature stat lines and a <b>BBCode</b> button that copies the text.</p><div class="call warn" data-l="en"><span class="k">CAREFUL</span><p>A webhook lets anyone who has it post in your channel. It is kept only in this browser and never goes into JSON exports or links. Do not paste it anywhere public.</p></div><div class="call warn" data-l="es"><span class="k">OJO</span><p>Un webhook permite publicar en tu canal a cualquiera que lo tenga. Solo se guarda en este navegador y nunca va en las exportaciones JSON ni en los enlaces. No lo pegues en ningún sitio público.</p></div><p class="done"><span>✓</span> Your players are seeing the map in Discord.</p></div><div data-l="es"><h2>Compartir en Discord</h2><ol>
+<li>En Discord abre los ajustes del canal, ve a <b>Integraciones → Webhooks</b>, crea un webhook y copia su URL.</li>
+<li>En el mapmaker pulsa <b>💬 Discord</b>, pega la URL y pulsa <b>Test</b>. Cada campaña tiene su propio webhook.</li>
+<li>Usa <b>📤 Post round (map + log)</b>, <b>Post description</b> o <b>Post initiative</b>. Los mapas se recortan al área que estés mostrando.</li>
+</ol><p>Para foros de juego por correo, <b>✍ Post</b> abre un editor con plantillas, líneas de estadísticas de criaturas y un botón <b>BBCode</b> que copia el texto.</p><p class="done"><span>✓</span> Tus jugadores ven el mapa en Discord.</p></div></section><section id="c6"><span class="coord">06.00</span><div data-l="en"><h2>Publish to a site</h2><p>Publishing gives your players one link that always shows your latest map, with no need to post images. You need a site address and a DM key: either your own server (see the <a href="https://github.com/Aurangh/worldbuild#readme">README</a>) or a key from me.</p>
+<ol>
+<li>Give the map a campaign. Press <b>🗂 Maps</b>, type the campaign name and press <b>Save</b>. A map must belong to a campaign before it can be published.</li>
+<li>Press <b>🌐 Publish</b>. Under <b>Site</b> enter the site address and your DM key, then press <b>Test connection</b>.</li>
+<li>Press <b>Publish</b>. The preview shows exactly what players will get. A link appears: press <b>Copy link</b> and send it to your players.</li>
+<li>After changing the map, press <b>Publish</b> again and players reload the page.</li>
+</ol><figure class="narrow"><img src="guide-img/g12-save.webp" alt="" data-alt-en="Saving the map into a campaign." data-alt-es="Guardar el mapa en una campaña." loading="lazy" width="500" height="178"><figcaption data-l="en">Saving the map into a campaign.</figcaption><figcaption data-l="es">Guardar el mapa en una campaña.</figcaption></figure><figure class="narrow"><img src="guide-img/g13-publish.webp" alt="" data-alt-en="The Publish panel with the preview, the site fields and Test connection." data-alt-es="El panel Publish con la vista previa, los campos de la web y Test connection." loading="lazy" width="660" height="724"><figcaption data-l="en">The Publish panel with the preview, the site fields and Test connection.</figcaption><figcaption data-l="es">El panel Publish con la vista previa, los campos de la web y Test connection.</figcaption></figure><div class="call see" data-l="en"><span class="k">WHAT PLAYERS SEE</span><p>Players open the link on a phone or computer, zoom in, see grid coordinates and can copy or download the image. They only get the area you shared. Fog, hidden tokens and your notes are never uploaded.</p></div><div class="call see" data-l="es"><span class="k">LO QUE VEN LOS JUGADORES</span><p>Los jugadores abren el enlace en el móvil o el ordenador, hacen zoom, ven las coordenadas de la cuadrícula y pueden copiar o descargar la imagen. Solo reciben el área que compartiste. La niebla, las fichas ocultas y tus notas nunca se suben.</p></div><div class="call warn" data-l="en"><span class="k">CAREFUL</span><p>Anyone with the link can look at the map, so treat it like a password. If it leaks, press <b>Rotate link</b>: the old link stops working and you send the new one. Never share your DM key; it stays in this browser.</p></div><div class="call warn" data-l="es"><span class="k">OJO</span><p>Cualquiera con el enlace puede ver el mapa, así que trátalo como una contraseña. Si se filtra, pulsa <b>Rotate link</b>: el enlace antiguo deja de funcionar y envías el nuevo. No compartas nunca tu clave de DM; se queda en este navegador.</p></div><p class="done"><span>✓</span> Your players have a link to the map.</p></div><div data-l="es"><h2>Publicar en una web</h2><p>Publicar da a tus jugadores un solo enlace que siempre muestra tu último mapa, sin tener que enviar imágenes. Necesitas la dirección de una web y una clave de DM: tu propio servidor (consulta el <a href="https://github.com/Aurangh/worldbuild#readme">README</a>) o una clave mía.</p>
+<ol>
+<li>Asigna una campaña al mapa. Pulsa <b>🗂 Maps</b>, escribe el nombre de la campaña y pulsa <b>Save</b>. Un mapa debe pertenecer a una campaña para poder publicarlo.</li>
+<li>Pulsa <b>🌐 Publish</b>. En <b>Site</b> escribe la dirección de la web y tu clave de DM, y pulsa <b>Test connection</b>.</li>
+<li>Pulsa <b>Publish</b>. La vista previa muestra exactamente lo que recibirán los jugadores. Aparece un enlace: pulsa <b>Copy link</b> y envíalo a tus jugadores.</li>
+<li>Tras cambiar el mapa, pulsa <b>Publish</b> otra vez y los jugadores recargan la página.</li>
+</ol><p class="done"><span>✓</span> Tus jugadores tienen un enlace al mapa.</p></div></section><section id="c7"><span class="coord">07.00</span><div data-l="en"><h2>The world map</h2><p>Press <b>🗺 World</b> to open the hex map of the current campaign. There is one world per campaign.</p><figure class=""><img src="guide-img/g14-world-gm.webp" alt="" data-alt-en="The world map editor: tools on the left, the map in the middle, the inspector on the right." data-alt-es="El editor del mapa del mundo: herramientas a la izquierda, el mapa en el centro, el inspector a la derecha." loading="lazy" width="1000" height="625"><figcaption data-l="en">The world map editor: tools on the left, the map in the middle, the inspector on the right.</figcaption><figcaption data-l="es">El editor del mapa del mundo: herramientas a la izquierda, el mapa en el centro, el inspector a la derecha.</figcaption></figure><h3>Paint the land</h3>
+<ul>
+<li>Pick a terrain in the list, then <b>Paint</b> hexes. The brush covers one hex or seven. <b>Fill</b> floods an area and <b>Erase</b> removes terrain.</li>
+<li><b>Road</b>, <b>Trail</b> and <b>River</b>: press and drag across the hexes to draw the line. <b>Remove</b> (✂) deletes a stretch the same way.</li>
+<li>The menu at the top switches between flat-top and pointy-top hexes. Coordinates such as <code>03.07</code> appear on the map so players can quote them in their posts.</li>
+<li>For a hand-drawn map use <b>🖼 Import image…</b> in the inspector, place it with <b>Move image</b> and lower the terrain opacity so the picture shows through.</li>
+</ul>
+<h3>Mark places</h3>
+<p>Choose <b>Site</b> and click a hex. In the inspector set the type (town, ruin, castle, lair…), the name, an optional <b>Name for players</b>, a <b>Player blurb</b> and your private <b>DM notes</b>. A place is only shown to players if its hex is revealed and <b>Visible to players</b> is ticked.</p><p class="done"><span>✓</span> You have a painted world with roads, rivers and places.</p></div><div data-l="es"><h2>El mapa del mundo</h2><p>Pulsa <b>🗺 World</b> para abrir el mapa hexagonal de la campaña actual. Hay un mundo por campaña.</p><h3>Pinta la tierra</h3>
+<ul>
+<li>Elige un terreno de la lista y usa <b>Paint</b> sobre los hexágonos. El pincel cubre uno o siete. <b>Fill</b> rellena un área y <b>Erase</b> quita el terreno.</li>
+<li><b>Road</b>, <b>Trail</b> y <b>River</b>: mantén pulsado y arrastra por los hexágonos para dibujar la línea. <b>Remove</b> (✂) borra un tramo del mismo modo.</li>
+<li>El menú de arriba alterna entre hexágonos con vértice arriba o con lado arriba. En el mapa aparecen coordenadas como <code>03.07</code> para que los jugadores las citen en sus mensajes.</li>
+<li>Para un mapa dibujado a mano usa <b>🖼 Import image…</b> en el inspector, colócalo con <b>Move image</b> y baja la opacidad del terreno para que se vea la imagen.</li>
+</ul>
+<h3>Marca lugares</h3>
+<p>Elige <b>Site</b> y haz clic en un hexágono. En el inspector fija el tipo (pueblo, ruina, castillo, guarida…), el nombre, un <b>Name for players</b> opcional, un <b>Player blurb</b> y tus <b>DM notes</b> privadas. Un lugar solo se muestra a los jugadores si su hexágono está revelado y <b>Visible to players</b> está marcado.</p><p class="done"><span>✓</span> Tienes un mundo pintado con caminos, ríos y lugares.</p></div></section><section id="c8"><span class="coord">08.00</span><div data-l="en"><h2>Link places to battle maps</h2><p>Any place can lead to the battle map where the action happens.</p>
+<ol>
+<li>Save the battle map in the same campaign as the world (chapter 6, step 1).</li>
+<li>In the world, select the place with <b>Site</b> or <b>Select</b>. In the inspector, under the map link, press <b>Change…</b> and pick the battle map. <b>Open ▶</b> jumps to it and <b>Unlink</b> removes the link.</li>
+<li>Keep <b>Players can open this battle map from the world page</b> ticked if you want players to reach it. Untick it for a map you are not ready to show.</li>
+<li>Publish the battle map (chapter 6), then publish the world (chapter 9). The order does not matter, but both must be published.</li>
+</ol><figure class=""><img src="guide-img/g15-world-site.webp" alt="" data-alt-en="The Old Mill selected: its player name, blurb, and the link to the Goblin Ambush battle map." data-alt-es="El lugar The Old Mill seleccionado: su nombre para jugadores, su descripción y el enlace al mapa de combate Goblin Ambush." loading="lazy" width="1000" height="625"><figcaption data-l="en">The Old Mill selected: its player name, blurb, and the link to the Goblin Ambush battle map.</figcaption><figcaption data-l="es">El lugar The Old Mill seleccionado: su nombre para jugadores, su descripción y el enlace al mapa de combate Goblin Ambush.</figcaption></figure><div class="call see" data-l="en"><span class="k">WHAT PLAYERS SEE</span><p>Once the place is revealed and its battle map is published, players see an <b>⚔ Open battle map</b> button in the sidebar. It opens the map in the same page, and a <b>← World</b> button brings them back.</p></div><div class="call see" data-l="es"><span class="k">LO QUE VEN LOS JUGADORES</span><p>Cuando el lugar está revelado y su mapa de combate publicado, los jugadores ven un botón <b>⚔ Open battle map</b> en la barra lateral. Abre el mapa en la misma página y un botón <b>← World</b> los devuelve.</p></div><p class="done"><span>✓</span> A place on the world map leads to its battle map.</p></div><div data-l="es"><h2>Enlazar lugares con mapas de combate</h2><p>Cualquier lugar puede llevar al mapa de combate donde ocurre la acción.</p>
+<ol>
+<li>Guarda el mapa de combate en la misma campaña que el mundo (capítulo 6, paso 1).</li>
+<li>En el mundo, selecciona el lugar con <b>Site</b> o <b>Select</b>. En el inspector, bajo el enlace al mapa, pulsa <b>Change…</b> y elige el mapa de combate. <b>Open ▶</b> salta a él y <b>Unlink</b> quita el enlace.</li>
+<li>Deja marcado <b>Players can open this battle map from the world page</b> si quieres que los jugadores lleguen a él. Desmárcalo para un mapa que aún no quieres enseñar.</li>
+<li>Publica el mapa de combate (capítulo 6) y después el mundo (capítulo 9). El orden da igual, pero hay que publicar ambos.</li>
+</ol><p class="done"><span>✓</span> Un lugar del mapa del mundo lleva a su mapa de combate.</p></div></section><section id="c9"><span class="coord">09.00</span><div data-l="en"><h2>Reveal and travel</h2><ul>
+<li><b>Reveal</b> shows hexes to players and <b>Hide</b> covers them again. Click or drag; the brush size applies.</li>
+<li><b>Party</b> (🚩) places the party marker, drawn as two crossed swords. Move it as the group travels.</li>
+<li>Press <b>🌐 Players</b> to see what the players will get and to publish. You can post the image to Discord (with the campaign's webhook), publish it to your site, or both.</li>
+</ul><figure class="mid"><img src="guide-img/g16-world-publish.webp" alt="" data-alt-en="The world publish panel. Only revealed hexes are included." data-alt-es="El panel para publicar el mundo. Solo se incluyen los hexágonos revelados." loading="lazy" width="640" height="756"><figcaption data-l="en">The world publish panel. Only revealed hexes are included.</figcaption><figcaption data-l="es">El panel para publicar el mundo. Solo se incluyen los hexágonos revelados.</figcaption></figure><div class="call see" data-l="en"><span class="k">WHAT PLAYERS SEE</span><p>Players get only revealed hexes, roads between two revealed hexes, places you marked visible (with their player name and blurb) and the party marker. Hidden hexes, DM notes and your battle-map links are never in the image or the data.</p></div><div class="call see" data-l="es"><span class="k">LO QUE VEN LOS JUGADORES</span><p>Los jugadores reciben solo los hexágonos revelados, los caminos entre dos hexágonos revelados, los lugares que marcaste como visibles (con su nombre y descripción para jugadores) y el marcador del grupo. Los hexágonos ocultos, tus notas y tus enlaces a mapas de combate nunca van en la imagen ni en los datos.</p></div><figure class=""><img src="guide-img/g17-player-world.webp" alt="" data-alt-en="What a player sees: only the explored area, with the party and the places you showed." data-alt-es="Lo que ve un jugador: solo la zona explorada, con el grupo y los lugares que mostraste." loading="lazy" width="1000" height="625"><figcaption data-l="en">What a player sees: only the explored area, with the party and the places you showed.</figcaption><figcaption data-l="es">Lo que ve un jugador: solo la zona explorada, con el grupo y los lugares que mostraste.</figcaption></figure><figure class=""><img src="guide-img/g18-player-open.webp" alt="" data-alt-en="A selected place with its battle map ready to open." data-alt-es="Un lugar seleccionado con su mapa de combate listo para abrir." loading="lazy" width="1000" height="625"><figcaption data-l="en">A selected place with its battle map ready to open.</figcaption><figcaption data-l="es">Un lugar seleccionado con su mapa de combate listo para abrir.</figcaption></figure><figure class=""><img src="guide-img/g19-player-battle.webp" alt="" data-alt-en="The battle map opened from the world, with the ← World button to go back." data-alt-es="El mapa de combate abierto desde el mundo, con el botón ← World para volver." loading="lazy" width="1000" height="625"><figcaption data-l="en">The battle map opened from the world, with the ← World button to go back.</figcaption><figcaption data-l="es">El mapa de combate abierto desde el mundo, con el botón ← World para volver.</figcaption></figure><p class="done"><span>✓</span> Your players can follow the party across the world and open the battle maps you chose.</p></div><div data-l="es"><h2>Revelar y viajar</h2><ul>
+<li><b>Reveal</b> muestra hexágonos a los jugadores y <b>Hide</b> los vuelve a cubrir. Haz clic o arrastra; se aplica el tamaño del pincel.</li>
+<li><b>Party</b> (🚩) coloca el marcador del grupo, dibujado como dos espadas cruzadas. Muévelo mientras el grupo viaja.</li>
+<li>Pulsa <b>🌐 Players</b> para ver lo que recibirán los jugadores y publicar. Puedes enviar la imagen a Discord (con el webhook de la campaña), publicarla en tu web, o ambas cosas.</li>
+</ul><p class="done"><span>✓</span> Tus jugadores pueden seguir al grupo por el mundo y abrir los mapas de combate que elegiste.</p></div></section><section id="c10"><span class="coord">10.00</span><div data-l="en"><h2>Troubleshooting</h2><ul>
+<li><b>Players see "the link has changed".</b> You rotated the link. Send them the new one from the Publish panel.</li>
+<li><b>The Publish button says to give the map a campaign.</b> Save the map in a campaign first (chapter 6, step 1).</li>
+<li><b>The test connection fails.</b> Check the site address (it starts with <code>https://</code>) and paste the DM key again. After too many wrong tries the server asks you to wait ten minutes.</li>
+<li><b>A quota message.</b> If you reach your storage or campaign limit on a shared server, unpublish old maps or ask the server owner. A "belongs to another DM" message means the campaign ID clashes with someone else's; tell the server owner.</li>
+<li><b>No ⚔ Open battle map button.</b> The place must be revealed and visible, the link ticked, the battle map in the same campaign and published, and the world published after the link was made.</li>
+<li><b>A map disappeared.</b> Maps live in this browser. Restore from a JSON backup (chapter 1). A published map can also be removed from the server when you pass the limit of maps per campaign; publish it again.</li>
+</ul><p class="done"><span>✓</span> You know where to look when something does not show up.</p></div><div data-l="es"><h2>Solución de problemas</h2><ul>
+<li><b>Los jugadores ven "the link has changed".</b> Rotaste el enlace. Envíales el nuevo desde el panel Publish.</li>
+<li><b>Publish dice que asignes una campaña al mapa.</b> Guarda antes el mapa en una campaña (capítulo 6, paso 1).</li>
+<li><b>Falla la prueba de conexión.</b> Revisa la dirección de la web (empieza por <code>https://</code>) y pega de nuevo la clave de DM. Tras demasiados intentos erróneos el servidor te pide esperar diez minutos.</li>
+<li><b>Un mensaje de cuota.</b> Si alcanzas tu límite de espacio o de campañas en un servidor compartido, despublica mapas antiguos o consulta al dueño del servidor. Un mensaje de "pertenece a otro DM" indica que el ID de la campaña choca con el de otra persona; avisa al dueño del servidor.</li>
+<li><b>No aparece el botón ⚔ Open battle map.</b> El lugar debe estar revelado y visible, el enlace marcado, el mapa de combate en la misma campaña y publicado, y el mundo publicado después de crear el enlace.</li>
+<li><b>Desapareció un mapa.</b> Los mapas viven en este navegador. Restaura desde una copia JSON (capítulo 1). Un mapa publicado también puede borrarse del servidor al superar el límite de mapas por campaña; publícalo de nuevo.</li>
+</ul><p class="done"><span>✓</span> Sabes dónde mirar cuando algo no aparece.</p></div></section>
+<section class="cta"><span class="coord">11.00</span>
+<div data-l="en"><h2>Want to publish on my server?</h2><p>If you do not have a server of your own, ask me for a key and publish your maps here. By invitation for now.</p><p class="btns"><a class="btn pri" href="mailto:aurangh@aurangbuilds.es?subject=DM%20key%20request">Ask for a key</a> <a class="btn" href="https://ko-fi.com/auranghzeb" target="_blank" rel="noopener">🧪 Brew me a potion</a></p></div>
+<div data-l="es"><h2>¿Quieres publicar en mi servidor?</h2><p>Si no tienes servidor propio, pídeme una clave y publica aquí tus mapas. Por invitación de momento.</p><p class="btns"><a class="btn pri" href="mailto:aurangh@aurangbuilds.es?subject=DM%20key%20request">Pedir una clave</a> <a class="btn" href="https://ko-fi.com/auranghzeb" target="_blank" rel="noopener">🧪 Prepárame una poción</a></p></div></section>
+</article></div>
+<footer><a class="mono" href="mailto:aurangh@aurangbuilds.es">aurangh@aurangbuilds.es</a><a href="https://github.com/Aurangh/worldbuild">GitHub · Aurangh/worldbuild</a><a href="https://github.com/Aurangh/worldbuild/blob/main/LICENSE">MIT</a></footer>
+</div>
+<script>
+(function(){
+var T={en:{back:"← Home",guide:"GUIDE"},es:{back:"← Inicio",guide:"GUÍA"}};
+var SEL={en:'<option value="#c1">01 · Get started</option><option value="#c2">02 · Your first battle map</option><option value="#c3">03 · Fog, vision and areas</option><option value="#c4">04 · Encounters</option><option value="#c5">05 · Share on Discord</option><option value="#c6">06 · Publish to a site</option><option value="#c7">07 · The world map</option><option value="#c8">08 · Link places to battle maps</option><option value="#c9">09 · Reveal and travel</option><option value="#c10">10 · Troubleshooting</option>',es:'<option value="#c1">01 · Primeros pasos</option><option value="#c2">02 · Tu primer mapa de combate</option><option value="#c3">03 · Niebla, visión y áreas</option><option value="#c4">04 · Encuentros</option><option value="#c5">05 · Compartir en Discord</option><option value="#c6">06 · Publicar en una web</option><option value="#c7">07 · El mapa del mundo</option><option value="#c8">08 · Enlazar lugares con mapas de combate</option><option value="#c9">09 · Revelar y viajar</option><option value="#c10">10 · Solución de problemas</option>'};
+function setLang(l){document.documentElement.lang=l;
+ document.querySelectorAll('[data-t]').forEach(function(e){e.textContent=T[l][e.getAttribute('data-t')]});
+ document.querySelectorAll('img[data-alt-en]').forEach(function(i){i.alt=i.getAttribute('data-alt-'+l)});
+ document.getElementById('tocSel').innerHTML=SEL[l];
+ document.title=(l==='es'?'Guía del mapmaker':'Mapmaker guide')+' · Auranghzeb';
+ document.getElementById('bEN').setAttribute('aria-pressed',l==='en');document.getElementById('bES').setAttribute('aria-pressed',l==='es');
+ try{localStorage.setItem('lang',l)}catch(e){}}
+document.getElementById('bEN').onclick=function(){setLang('en')};document.getElementById('bES').onclick=function(){setLang('es')};
+document.getElementById('tocSel').onchange=function(e){location.hash=e.target.value;e.target.selectedIndex=-1};
+var s=null;try{s=localStorage.getItem('lang')}catch(e){}
+setLang(s||((navigator.language||'en').slice(0,2)==='es'?'es':'en'));
+})();
+</script></body></html>

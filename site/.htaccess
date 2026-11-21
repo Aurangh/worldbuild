@@ -9,7 +9,7 @@ Options -Indexes
   Header set X-Content-Type-Options "nosniff"
 </IfModule>
 <IfModule mod_headers.c>
-  <Files "index.html">
+  <FilesMatch "^(index|guide)\.html$">
     Header unset X-Robots-Tag
-  </Files>
+  </FilesMatch>
 </IfModule>
