@@ -1,6 +1,7 @@
 # Map tracker
 
 - `dm/mapmakerdnd.html` — the DM tool (single file, open it locally; not deployed).
+- `site/draw/index.html` — the map drawing tool (single file, works offline; also served at `https://aurangbuilds.es/draw/`). Paints textured battle and hex world maps with walls, objects, layers, seasons and time of day, and exports PNGs sized for the tracker's grid.
 - `site/` — what goes on the web host: `api.php`, `play.html`, `index.html`, `admin.html`, `.htaccess`.
 - Pushing to `main` with changes under `site/` uploads it automatically (`.github/workflows/deploy.yml`).
 
