@@ -8,7 +8,7 @@
 :root{--bg:#121418;--panel:#1b1e24;--panel2:#232730;--line:#313644;--text:#d9dde5;--dim:#8b92a1;--acc:#d9a441;--acc2:#7fb4c9}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.4 system-ui,"Segoe UI",Ubuntu,sans-serif;overflow:hidden}
-#app{display:grid;grid-template-columns:52px 1fr 250px;grid-template-rows:42px 1fr 26px;height:100vh}
+#app{display:grid;grid-template-columns:64px 1fr 280px;grid-template-rows:42px 1fr 26px;height:100vh}
 header{grid-column:1/4;display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--line)}
 header .title{font-weight:600;letter-spacing:.3px;margin-right:8px;color:var(--acc)}
 header input.name{background:transparent;border:1px solid transparent;color:var(--text);font:inherit;font-weight:600;padding:4px 6px;border-radius:4px;width:200px}
@@ -20,9 +20,9 @@ button.primary{background:#3a2f17;border-color:#6b5524;color:#f1d79c}
 button.primary:hover{background:#4a3c1c}
 button:disabled{opacity:.4;cursor:default}
 #tools{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;overflow-y:auto;min-height:0}
-#tools button{flex:none;width:38px;height:38px;padding:0;display:grid;place-items:center;position:relative}
+#tools button{flex:none;width:50px;height:50px;padding:0;display:grid;place-items:center;position:relative}
 #tools button.on{background:#3a2f17;border-color:var(--acc)}
-#tools button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#tools button svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 #tools button kbd{position:absolute;right:2px;bottom:1px;font-size:9px;color:var(--dim);font-family:inherit}
 #tools hr{width:30px;border:0;border-top:1px solid var(--line);margin:4px 0}
 #view{position:relative;overflow:hidden;background:#0c0d10 radial-gradient(circle at 50% 50%,#16181d,#0b0c0f);cursor:crosshair;touch-action:none}
@@ -37,6 +37,15 @@ header button.on{background:#1d2440;border-color:#7f95d8;color:#cfd9ff}
 .row select{max-width:130px}
 #overlay{position:absolute;inset:0;pointer-events:none}
 #side{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:10px}
+body.side-collapsed #app{grid-template-columns:64px 1fr 0}
+body.side-collapsed #side{display:none}
+@media (pointer:coarse){ body.side-collapsed #app{grid-template-columns:72px 1fr 0} }
+#sideTab{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:6;width:26px;height:64px;padding:0;border-radius:8px 0 0 8px;border-right:0;font-size:16px;background:rgba(27,30,36,.95);color:var(--text)}
+@media (pointer:coarse){ #sideTab{width:34px;height:84px;font-size:20px} }
+#side h3{cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+#side h3::before{content:'▾';font-size:10px;transition:transform .15s}
+#side .sec.closed > h3::before{transform:rotate(-90deg)}
+#side .sec.closed > :not(h3){display:none !important}
 #side h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:14px 0 6px;font-weight:600}
 #side h3:first-child{margin-top:2px}
 #terrains,#customs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -48,9 +57,9 @@ header button.on{background:#1d2440;border-color:#7f95d8;color:#cfd9ff}
 #activeCol .rampv{display:flex;flex:1;height:14px;border-radius:3px;overflow:hidden}#activeCol .rampv i{flex:1}
 input[type=color]{width:34px;height:26px;padding:0;border:1px solid var(--line);background:none;border-radius:4px}
 .tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}.tabs button{flex:1;padding:3px 6px;font-size:12px}.tabs button.on{border-color:var(--acc);background:#3a2f17}
-#stamps{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+#stamps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .stp{border:1px solid var(--line);border-radius:6px;background:#2a2d27;cursor:pointer;padding:2px;text-align:center}
-.stp canvas{width:100%;height:52px;display:block}.stp span{font-size:10.5px;color:var(--dim);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stp{padding:4px}.stp canvas{width:100%;height:68px;display:block}.stp span{font-size:11.5px;margin-top:2px;color:var(--dim);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stp.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}.stp.on span{color:var(--text)}
 .tsw{display:flex;flex-direction:column;gap:3px;padding:4px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--panel2)}
 .tsw canvas{width:100%;height:46px;border-radius:3px;display:block}
@@ -70,8 +79,8 @@ body.touch #touchBar{display:flex}
 button,select,input{touch-action:manipulation}
 #bSide{display:none}
 header{overflow-x:auto;overflow-y:hidden}header>*{flex:none}
-@media (pointer:coarse){ #app{grid-template-columns:60px 1fr 270px} #tools button{width:46px;height:46px} .row input[type=checkbox]{width:20px;height:20px} input[type=range]{height:30px} header button{padding:8px 12px} .sw{width:30px;height:24px} }
-@media (max-width:1100px){ #app{grid-template-columns:60px 1fr} #side{position:fixed;right:0;top:42px;bottom:26px;width:290px;z-index:20;transform:translateX(105%);transition:transform .2s;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
+@media (pointer:coarse){ #app{grid-template-columns:72px 1fr 300px} #tools button{width:58px;height:58px} #tools button svg{width:28px;height:28px} .stp canvas{height:76px} .row input[type=checkbox]{width:20px;height:20px} input[type=range]{height:30px} header button{padding:8px 12px} .sw{width:30px;height:24px} }
+@media (max-width:1100px){ #app{grid-template-columns:64px 1fr} body.side-collapsed #app{grid-template-columns:64px 1fr} #side{position:fixed;right:0;top:42px;bottom:26px;width:290px;z-index:20;transform:translateX(105%);transition:transform .2s;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
   body.side-open #side{transform:none} #bSide{display:inline-block} }
 #layers{display:flex;flex-direction:column;gap:4px}
 #side{overflow-x:hidden}#side .row select{min-width:0}
@@ -117,6 +126,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <button id="bUndo" title="Undo (Ctrl+Z)">Undo</button>
     <button id="bRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
     <button id="bFit" title="Fit map to view (0)">Fit</button>
+    <button id="bTop" class="on" title="Show or hide roofs and tree canopies (K). Hidden: see inside buildings; trees leave their shade and trunk">⌂ Roofs &amp; trees</button>
     <select id="seasonSel" title="Season"><option value="spring">🌸 Spring</option><option value="summer" selected>☀ Summer</option><option value="autumn">🍂 Autumn</option><option value="winter">❄ Winter</option></select>
     <select id="todSel" title="Time of day (N cycles) — fires, braziers, candles, torches, lanterns, windows and lava glow at dusk and night"><option value="day">☀ Day</option><option value="dawn">🌅 Dawn</option><option value="golden">🌇 Golden hour</option><option value="dusk">🌆 Dusk</option><option value="night">☾ Night</option></select>
     <span class="sp"></span>
@@ -156,6 +166,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <canvas id="glowCanvas"></canvas>
     <canvas id="labelCanvas"></canvas>
     <canvas id="overlay"></canvas>
+    <button id="sideTab" title="Hide or show the side panel">›</button>
     <div id="touchBar">
       <button data-a="undo" title="Undo">↶</button><button data-a="redo" title="Redo">↷</button><span class="gap"></span>
       <button data-a="rl" title="Rotate left">⟲</button><button data-a="rr" title="Rotate right">⟳</button><button data-a="smaller" title="Smaller">−</button><button data-a="bigger" title="Bigger">+</button><button data-a="del" title="Delete selected object">Delete</button><span class="gap"></span>
@@ -198,6 +209,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <h3>Structure</h3>
     <div class="row"><label for="wallMat">Wall material</label><select id="wallMat"><option value="stone">Stone</option><option value="wood">Wood</option><option value="cave">Rough cave</option></select></div>
     <div class="row"><label for="wallTh">Wall thickness</label><select id="wallTh"><option value="0.15">Thin</option><option value="0.25" selected>Normal</option><option value="0.4">Thick</option></select></div>
+    <div class="row"><label for="roomShape">Room shape</label><select id="roomShape"><option value="rect">Rectangle (drag)</option><option value="poly">Polygon (click corners)</option><option value="circle">Round (drag radius)</option></select></div>
     <div class="row"><label for="roofMat">Roof</label><select id="roofMat"><option value="tiles">Clay tiles</option><option value="slate">Slate</option><option value="thatch">Thatch</option><option value="shingles">Wood shingles</option></select></div>
     <div class="row"><label for="doorType">Door type</label><select id="doorType"><option value="door">Door</option><option value="double">Double door</option><option value="secret">Secret door</option><option value="portcullis">Portcullis</option><option value="window">Window</option><option value="opening">Open archway</option></select></div>
     <div class="row"><label for="showSecret">Show secret doors</label><input type="checkbox" id="showSecret" checked></div>
@@ -280,6 +292,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <label>Pixels per square</label><input type="number" id="ePx" value="80" min="10" max="300">
     <label>Draw grid</label><input type="checkbox" id="eGrid">
     <label>Include labels</label><input type="checkbox" id="eLabels">
+    <label>Roofs &amp; tree canopies</label><input type="checkbox" id="eTop" checked>
     <label>Season</label><select id="eSeason"><option value="spring">Spring</option><option value="summer">Summer</option><option value="autumn">Autumn</option><option value="winter">Winter</option></select>
     <label>Time of day</label><select id="eTod"><option value="day">Day</option><option value="dawn">Dawn</option><option value="golden">Golden hour</option><option value="dusk">Dusk</option><option value="night">Night</option></select>
   </div>
@@ -308,6 +321,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
 const R = 8;                    // label samples per cell
 const TILE_CELLS = 4;           // texture tile spans 4×4 cells
 let SEASON = 'summer';                       // spring | summer | autumn | winter
+let SHOW_TOP = true;                         // roofs and tree canopies shown (off: see inside buildings and under trees)
 const SUN = { dx: .07, dy: .1, a: .6 };       // shadow direction per unit of height, and shadow strength
 
 /* ---------- utilities ---------- */
@@ -480,6 +494,16 @@ function drawCanopy(x, S, P, rnd, r, pine){
     else { ctx.moveTo(cx + t.rad * sc * .78, cy); ctx.arc(cx, cy, t.rad * sc * .78, 0, 7);
       const n = 9; for (let i = 0; i < n; i++){ const a = t.rot + i * 6.283 / n, lr = t.rad * sc * (0.3 + 0.12 * Math.sin(i * 3.1 + t.k * 7)), lx = cx + Math.cos(a) * t.rad * sc * .7, ly = cy + Math.sin(a) * t.rad * sc * .7; ctx.moveTo(lx + lr, ly); ctx.arc(lx, ly, lr, 0, 7); } }
   };
+  if (!SHOW_TOP){ // canopy hidden: forest floor, dappled shade where the crowns are, and the trunks
+    x.fillStyle = SEASON === 'winter' ? 'rgba(214,224,233,.88)' : SEASON === 'autumn' ? 'rgba(104,74,40,.84)' : pine ? 'rgba(92,72,48,.84)' : 'rgba(80,74,44,.84)'; x.fillRect(0, 0, S, S);
+    const sh = document.createElement('canvas'); sh.width = sh.height = S; const sx = sh.getContext('2d'); sx.fillStyle = '#000';
+    for (const t of trees) wrapDraw(t.x, t.y, t.rad * 1.6, S, (ax, ay) => { shape(sx, t, ax, ay, 1); sx.fill(); });
+    x.save(); x.globalAlpha = .3; x.drawImage(sh, 0, 0); x.restore();   // no blur: it would show seams where the texture tiles
+    for (const t of trees) wrapDraw(t.x, t.y, t.rad, S, (ax, ay) => { const r = Math.max(1.2, t.rad * (pine ? .12 : .16));
+      x.fillStyle = 'rgba(0,0,0,.45)'; x.beginPath(); x.arc(ax + r * .3, ay + r * .4, r * 1.1, 0, 7); x.fill();
+      const g = x.createRadialGradient(ax - r * .3, ay - r * .3, 0, ax, ay, r); g.addColorStop(0, '#7a5a3c'); g.addColorStop(1, '#3a2618'); x.fillStyle = g; x.beginPath(); x.arc(ax, ay, r, 0, 7); x.fill(); });
+    return;
+  }
   // ground shadows
   x.save(); x.filter = `blur(${Math.max(1, P * 0.05).toFixed(1)}px)`; x.fillStyle = 'rgba(0,0,0,.55)';
   for (const t of trees) wrapDraw(t.x, t.y, t.rad * 1.6, S, (ax, ay) => { shape(x, t, ax + P * .1, ay + P * .13, 1.02); x.fill(); });
@@ -524,7 +548,7 @@ function seasonal(T){ if (T.custom || SEASON === 'summer') return T; const o = S
   if (SEASON === 'winter' && T.key === 'water') t.edge = { color: 'rgba(240,248,252,.75)', w: .25 };
   return t; }
 const texCache = new Map();
-function getTexture(tid, P){ const key = tid + ':' + (TERRAINS[tid].hex || '') + ':' + P + ':' + map.seed + ':' + SEASON; let c = texCache.get(key);
+function getTexture(tid, P){ const key = tid + ':' + (TERRAINS[tid].hex || '') + ':' + P + ':' + map.seed + ':' + SEASON + (SHOW_TOP ? '' : ':open'); let c = texCache.get(key);
   if (!c){ const T = seasonal(TERRAINS[tid]); c = genTex(T, P, map.seed, T.baseIdx ?? tid); texCache.set(key, c); } return c; }
 
 /* ---------- map state ---------- */
@@ -671,7 +695,7 @@ function drawStructure(m, ctx, P, opt){
   ctx.restore();
   for (const d of st.doors) drawDoor(ctx, d, P, opt);
   drawObjects(ctx, m, P);
-  for (const r of st.roofs || []) drawRoof(ctx, r, P);
+  if (SHOW_TOP) for (const r of st.roofs || []) drawRoof(ctx, r, P);
   if (opt.labels) drawLabels(ctx, st.labels || [], P);
   ctx.restore();
 }
@@ -1129,12 +1153,18 @@ function getSprite(t, v, R, tint){
   y.filter = `brightness(0) blur(${Math.max(.5, R * .05).toFixed(1)}px)`; y.drawImage(c, 0, 0);
   s = { c, sh, size }; spriteCache.set(key, s); return s;
 }
+const CANOPY = { oak: 1, pine: 1 };
 function drawObjects(ctx, m, P){
   const objs = m.struct.objects; if (!objs || !objs.length) return;
   const order = objs.map((o, i) => i).sort((a, b) => (STAMPS[objs[a].t].z - STAMPS[objs[b].t].z) || a - b);
   for (const pass of [0, 1]) for (const i of order){
     const o = objs[i], st = STAMPS[o.t]; if (!st) continue;
     const sp = getSprite(o.t, o.v, P * o.s, o.c);
+    if (!SHOW_TOP && CANOPY[o.t]){ ctx.save(); ctx.translate(o.x * P, o.y * P); ctx.rotate(o.r || 0);
+      if (pass === 0){ ctx.globalAlpha = .38; ctx.drawImage(sp.sh, -sp.size / 2, -sp.size / 2); }
+      else { const r = P * o.s * (o.t === 'pine' ? .07 : .1); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.arc(r * .3, r * .4, r * 1.1, 0, 7); ctx.fill();
+        const g = ctx.createRadialGradient(-r * .3, -r * .3, 0, 0, 0, r); g.addColorStop(0, '#7a5a3c'); g.addColorStop(1, '#3a2618'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); }
+      ctx.restore(); continue; }
     ctx.save();
     if (pass === 0){ const k = Math.min(1.6, st.hg) * P * o.s; ctx.globalAlpha = SUN.a * .85; ctx.translate(o.x * P + k * SUN.dx, o.y * P + k * SUN.dy); }
     else ctx.translate(o.x * P, o.y * P);
@@ -1154,14 +1184,16 @@ function drawRoof(ctx, r, P){
   const ramp = (r.c ? rampFromHex(r.c) : ROOFMATS[r.mat] || ROOFMATS.tiles).map(hexRgb), col = (t, a = 1) => rgba(ramp, t, a);
   const ov = P * .12, x = r.x0 * P - ov, y = r.y0 * P - ov, w = (r.x1 - r.x0) * P + 2 * ov, h = (r.y1 - r.y0) * P + 2 * ov, horiz = w >= h;
   ctx.save();
-  ctx.filter = `blur(${(P * .1).toFixed(1)}px)`; ctx.fillStyle = `rgba(0,0,0,${SUN.a * .85})`; ctx.fillRect(x + SUN.dx * P * 2.2, y + SUN.dy * P * 2.2, w, h); ctx.filter = 'none';
+  ctx.filter = `blur(${(P * .05).toFixed(1)}px)`; ctx.fillStyle = `rgba(0,0,0,${SUN.a * .7})`; ctx.fillRect(x + SUN.dx * P * 1.6, y + SUN.dy * P * 1.6, w, h); ctx.filter = 'none';
   const hh = Math.min(w, h) / 2, A = horiz ? [x + hh, y + h / 2] : [x + w / 2, y + hh], B = horiz ? [x + w - hh, y + h / 2] : [x + w / 2, y + h - hh];
   const faces = horiz
     ? [[[[x, y], [x + w, y], B, A], .82, 'h'], [[[x, y + h], [x + w, y + h], B, A], .3, 'h'], [[[x, y], A, [x, y + h]], .62, 'v'], [[[x + w, y], B, [x + w, y + h]], .22, 'v']]
     : [[[[x, y], [x, y + h], B, A], .82, 'v'], [[[x + w, y], [x + w, y + h], B, A], .3, 'v'], [[[x, y], A, [x + w, y]], .62, 'h'], [[[x, y + h], B, [x + w, y + h]], .22, 'h']];
   const rnd = mulberry((r.x0 * 73 + r.y0 * 151) | 0), path = pts => { ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); };
   for (const [pts, t, dir] of faces){
-    ctx.save(); path(pts); ctx.clip(); ctx.fillStyle = col(t); ctx.fillRect(x, y, w, h);
+    ctx.save(); path(pts); ctx.clip();
+    { const ex = pts[0], fx = pts[1], mx = (ex[0] + fx[0]) / 2, my = (ex[1] + fx[1]) / 2, rx = (A[0] + B[0]) / 2, ry = (A[1] + B[1]) / 2, gr = ctx.createLinearGradient(rx, ry, mx, my);
+      gr.addColorStop(0, col(Math.min(1, t + .1))); gr.addColorStop(1, col(Math.max(0, t - .1))); ctx.fillStyle = gr; ctx.fillRect(x, y, w, h); }
     const step = P * (r.mat === 'thatch' ? .08 : .17);
     if (r.mat === 'thatch'){ ctx.lineCap = 'round'; for (let i = 0; i < w * h / (P * P) * 70; i++){ const px = x + rnd() * w, py = y + rnd() * h, l = P * (.08 + rnd() * .08);
         ctx.strokeStyle = col(clamp(t + (rnd() - .5) * .35, 0, 1), .7); ctx.lineWidth = Math.max(.6, P / 55); ctx.beginPath(); ctx.moveTo(px, py); dir === 'h' ? ctx.lineTo(px + (rnd() - .5) * P * .03, py + l) : ctx.lineTo(px + l, py + (rnd() - .5) * P * .03); ctx.stroke(); } }
@@ -1175,6 +1207,7 @@ function drawRoof(ctx, r, P){
   ctx.strokeStyle = col(.05, .9); ctx.lineWidth = Math.max(1.5, P / 18); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]);
   for (const [cx, cy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]){ const e = (horiz ? cx < A[0] + 1 : cy < A[1] + 1) ? A : B; ctx.moveTo(cx, cy); ctx.lineTo(e[0], e[1]); }
   ctx.stroke(); ctx.strokeStyle = SEASON === 'winter' ? 'rgba(255,255,255,.7)' : col(.95, .5); ctx.lineWidth = Math.max(.8, P / 45); ctx.beginPath(); ctx.moveTo(A[0] - 1, A[1] - 1); ctx.lineTo(B[0] - 1, B[1] - 1); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = Math.max(1, P / 25); ctx.strokeRect(x + P * .03, y + P * .03, w - P * .06, h - P * .06);
   ctx.strokeStyle = 'rgba(10,6,4,.9)'; ctx.lineWidth = Math.max(1.5, P / 30); ctx.strokeRect(x, y, w, h);
   ctx.restore();
 }
@@ -1310,8 +1343,8 @@ function renderRegion(m, ctx, P, rx0, ry0, rx1, ry1){
 }
 
 function renderFull(m, P, withGrid, opt = {}){
-  const prevSeason = SEASON, prevSun = { ...SUN }; if (opt.season) SEASON = opt.season; setSun(opt.tod || 'day');
-  try { return renderFull0(m, P, withGrid, opt); } finally { SEASON = prevSeason; Object.assign(SUN, prevSun); } }
+  const prevSeason = SEASON, prevSun = { ...SUN }, prevTop = SHOW_TOP; if (opt.season) SEASON = opt.season; setSun(opt.tod || 'day'); SHOW_TOP = opt.top !== false;
+  try { return renderFull0(m, P, withGrid, opt); } finally { SEASON = prevSeason; Object.assign(SUN, prevSun); SHOW_TOP = prevTop; } }
 function renderFull0(m, P, withGrid, opt = {}){
   const c = document.createElement('canvas'); c.width = m.cols * P; c.height = m.rows * P;
   const ctx = c.getContext('2d'), strip = Math.max(1, Math.floor(1600 / P));
@@ -1442,6 +1475,12 @@ function drawOverlay(){
     const kind = rectDrag.roof ? ' roof' : rectDrag.stairs ? ' stairs, down ' + { n: '↑', s: '↓', e: '→', w: '←' }[stairDir(rectDrag)] : rectDrag.room ? ' room' : ' sq';
     label(`${b[0] - a[0]} × ${b[1] - a[1]}${kind}`, sx + (b[0] - a[0]) * zoom / 2, sy - 14);
   }
+  if (tool === 'room' && roomDraft){ const P2 = roomDraft.pts.map(p => toScr(p[0], p[1])), hp = hover ? snapPt(hover[0], hover[1], mods, roomDraft.pts[roomDraft.pts.length - 1]) : null, H2 = hp && toScr(hp[0], hp[1]);
+    octx.fillStyle = 'rgba(217,164,65,.15)'; octx.strokeStyle = '#f1d79c'; octx.lineWidth = 2; octx.setLineDash([6, 4]); octx.beginPath(); P2.forEach(([x, y], i) => i ? octx.lineTo(x, y) : octx.moveTo(x, y)); if (H2) octx.lineTo(H2[0], H2[1]); octx.closePath(); octx.fill(); octx.stroke(); octx.setLineDash([]);
+    P2.forEach(([x, y], i) => { octx.fillStyle = i === 0 ? '#9fd88a' : '#f1d79c'; octx.strokeStyle = '#000'; octx.lineWidth = 1.5; octx.beginPath(); octx.arc(x, y, i === 0 ? 7 : 4.5, 0, 7); octx.fill(); octx.stroke(); });
+    label(roomDraft.pts.length >= 3 ? 'Click the green corner, Enter or Done to finish' : 'Click the corners of the room', P2[0][0], P2[0][1] - 20); }
+  if (circleDrag){ const [sx, sy] = toScr(circleDrag.c[0], circleDrag.c[1]); octx.strokeStyle = '#f1d79c'; octx.lineWidth = 2; octx.setLineDash([6, 4]); octx.beginPath(); octx.arc(sx, sy, circleDrag.r * zoom, 0, 7); octx.stroke(); octx.setLineDash([]);
+    label(`radius ${circleDrag.r} sq · ${+(circleDrag.r * map.ft).toFixed(1)} ${map.unit}`, sx, sy - circleDrag.r * zoom - 16); }
   if (tool === 'wall' && (wallDraft || hover)){
     const last = wallDraft && wallDraft.pts[wallDraft.pts.length - 1];
     const hp = hover ? snapPt(hover[0], hover[1], mods, last) : null;
@@ -1567,6 +1606,22 @@ function hitStruct(cx, cy){
 }
 function stairDir(rd){ const dx = rd.b[0] - rd.a[0], dy = rd.b[1] - rd.a[1]; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'e' : 'w') : (dy < 0 ? 'n' : 's'); }
 function endWall(){ wallDraft = null; drawOverlay(); }
+/* polygon and round rooms */
+let roomDraft = null, circleDrag = null;
+function pointInPoly(x, y, pts){ let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++){ const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; } return inside; }
+function fillPolygon(pts, tid){
+  const W = map.cols * R, H = map.rows * R, lab = map.labels, xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.max(0, Math.floor(Math.min(...xs) * R)), x1 = Math.min(W - 1, Math.ceil(Math.max(...xs) * R)), y0 = Math.max(0, Math.floor(Math.min(...ys) * R)), y1 = Math.min(H - 1, Math.ceil(Math.max(...ys) * R));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (pointInPoly((x + .5) / R, (y + .5) / R, pts)) lab[y * W + x] = tid;
+  markDirty(Math.min(...xs) - 1, Math.min(...ys) - 1, Math.max(...xs) + 1, Math.max(...ys) + 1);
+}
+function buildRoom(pts){
+  if (pts.length < 3) return; pushUndo(); fillPolygon(pts, curTerrain);
+  const mt = wallMat(), th = wallTh(); for (let i = 0; i < pts.length; i++){ const p = pts[i], q = pts[(i + 1) % pts.length]; if (Math.hypot(q[0] - p[0], q[1] - p[1]) > 1e-6) map.struct.walls.push({ x1: p[0], y1: p[1], x2: q[0], y2: q[1], mat: mt, th }); }
+  structChanged();
+}
+function finishRoomDraft(){ if (roomDraft && roomDraft.pts.length >= 3) buildRoom(roomDraft.pts); roomDraft = null; drawOverlay(); }
+function circlePts(c, r){ const n = clamp(Math.round(r * 6), 10, 48), out = []; for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2; out.push([+(c[0] + Math.cos(a) * r).toFixed(3), +(c[1] + Math.sin(a) * r).toFixed(3)]); } return out; }
 
 /* ---------- painting ---------- */
 function paintCircle(cx, cy, rad, tid){
@@ -1632,8 +1687,9 @@ const brushRad = e => { const b = +$('brushSize').value / 2; return (e && e.poin
 const isPenEraser = e => e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32));
 view.addEventListener('contextmenu', e => e.preventDefault());
 view.addEventListener('pointerdown', e => {
+  if (e.target.closest && e.target.closest('#touchBar, #sideTab')) return;   // buttons floating over the map
   view.setPointerCapture(e.pointerId); notePointer(e);
-  if (document.body.classList.contains('side-open')) document.body.classList.remove('side-open');
+  if (document.body.classList.contains('side-open')){ document.body.classList.remove('side-open'); sideState(); }
   const rect = view.getBoundingClientRect(), sx = e.clientX - rect.left, sy = e.clientY - rect.top, [cx, cy] = toCell(sx, sy);
   mods = { alt: e.altKey, shift: e.shiftKey };
   if (e.pointerType === 'touch'){
@@ -1656,7 +1712,14 @@ view.addEventListener('pointerdown', e => {
     case 'fill': pushUndo(); floodFill(cx, cy, tid); break;
     case 'pick': { const W = map.cols * R, x = Math.floor(cx * R), y = Math.floor(cy * R); if (x >= 0 && y >= 0 && x < W && y < map.rows * R){ let v = map.labels[y * W + x]; if (v === 255) for (const l of [...shownLayers(map)].reverse()){ if (l.labels[y * W + x] !== 255){ v = l.labels[y * W + x]; break; } } if (v !== 255){ selectTerrain(v); setTool('brush'); } } break; }
     case 'measure': { const p0 = isHex(map) ? pixelToHex(map, cx, cy) : [Math.floor(cx), Math.floor(cy)]; if (!p0) break; ruler = { a: p0, b: p0.slice() }; drag = { mode: 'measure' }; drawOverlay(); break; }
-    case 'room': case 'stairs': case 'roof': { const c = [clamp(Math.floor(cx), 0, map.cols - 1), clamp(Math.floor(cy), 0, map.rows - 1)];
+    case 'room': if ($('roomShape').value === 'poly'){ const p = snapPt(cx, cy, mods, roomDraft && roomDraft.pts[roomDraft.pts.length - 1]);
+        if (!roomDraft) roomDraft = { pts: [p] };
+        else { const f = roomDraft.pts[0], l = roomDraft.pts[roomDraft.pts.length - 1];
+          if (roomDraft.pts.length >= 3 && Math.hypot(p[0] - f[0], p[1] - f[1]) < .01 || (l[0] === p[0] && l[1] === p[1])) finishRoomDraft(); else roomDraft.pts.push(p); }
+        drawOverlay(); break; }
+      if ($('roomShape').value === 'circle'){ const c = snapPt(cx, cy, { alt: true }, null); circleDrag = { c, r: 0 }; drag = { mode: 'circle' }; drawOverlay(); break; }
+      // falls through to the rectangle room
+    case 'stairs': case 'roof': { const c = [clamp(Math.floor(cx), 0, map.cols - 1), clamp(Math.floor(cy), 0, map.rows - 1)];
       rectDrag = { a: c, b: c.slice(), room: tool === 'room', stairs: tool === 'stairs', roof: tool === 'roof' }; drag = { mode: 'rect' }; drawOverlay(); break; }
     case 'wall': { const last = wallDraft && wallDraft.pts[wallDraft.pts.length - 1], p = snapPt(cx, cy, mods, last);
       if (!wallDraft) wallDraft = { pts: [p], started: false };
@@ -1679,6 +1742,7 @@ view.addEventListener('pointerdown', e => {
   if (e.pointerType === 'touch'){ if (drag) Object.assign(drag, { touch: true, t0: performance.now(), u0 }); else drag = { mode: 'tap', touch: true, t0: performance.now(), u0 }; }
 });
 view.addEventListener('pointermove', e => {
+  if (e.target.closest && e.target.closest('#touchBar, #sideTab') && !drag) return;
   const rect = view.getBoundingClientRect(), sx = e.clientX - rect.left, sy = e.clientY - rect.top, [cx, cy] = toCell(sx, sy);
   if (e.pointerType === 'touch' && touches.has(e.pointerId)){ touches.set(e.pointerId, [sx, sy]);
     if (pinch && touches.size >= 2){ const [a, b] = [...touches.values()], c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
@@ -1700,6 +1764,7 @@ view.addEventListener('pointermove', e => {
     else if (drag.mode === 'cell'){ const W = map.cols * R; if (ix >= 0 && iy >= 0 && ix < map.cols && iy < map.rows && map.labels[(iy * R + R / 2) * W + ix * R + R / 2] !== drag.tid) paintCells(ix, iy, ix + 1, iy + 1, drag.tid); }
     if (drag.mode === 'rect'){ rectDrag.b = [clamp(ix, 0, map.cols - 1), clamp(iy, 0, map.rows - 1)]; }
     if (drag.mode === 'xstruct') eraseStructAt(cx, cy);
+    if (drag.mode === 'circle' && circleDrag){ circleDrag.r = Math.round(Math.hypot(cx - circleDrag.c[0], cy - circleDrag.c[1]) * 2) / 2; }
     if (drag.mode === 'label'){ const l = map.struct.labels[drag.i]; if (l && (drag.moved || Math.hypot(cx - drag.ox - l.x, cy - drag.oy - l.y) > .15)){ if (!drag.moved){ pushUndo(); drag.moved = true; } l.x = +(cx - drag.ox).toFixed(2); l.y = +(cy - drag.oy).toFixed(2); structChanged(); } }
     if (drag.mode === 'scatter' && Math.hypot(cx - drag.lx, cy - drag.ly) > +$('brushSize').value * .25){ scatterAt(cx, cy); drag.lx = cx; drag.ly = cy; }
     if (drag.mode === 'move' && selObj !== null){ if (!drag.pushed){ pushUndo(); drag.pushed = true; selObj = selObj; }
@@ -1719,6 +1784,7 @@ function endDrag(){
         if (rectDrag.room){ const mt = wallMat(), th = wallTh(), W = map.struct.walls, P4 = [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]];
           for (let i = 0; i < 4; i++){ const p = P4[i], q = P4[(i + 1) % 4]; W.push({ x1: p[0], y1: p[1], x2: q[0], y2: q[1], mat: mt, th }); } structChanged(); } } }
     rectDrag = null; }
+  if (drag.mode === 'circle' && circleDrag){ if (circleDrag.r >= 1) buildRoom(circlePts(circleDrag.c, circleDrag.r)); circleDrag = null; }
   if (drag.mode === 'pan') view.style.cursor = '';
   drag = null; drawOverlay();
 }
@@ -1740,12 +1806,13 @@ view.addEventListener('wheel', e => {
 
 /* ---------- UI: tools, terrains, settings ---------- */
 const TOOL_NAMES = { brush: 'Terrain brush', cell: 'Cell paint', rect: 'Rectangle fill', fill: 'Flood fill', eraser: 'Eraser', pick: 'Picker', measure: 'Ruler', pan: 'Pan',
-  wall: 'Wall — click corners; click the last point again, right-click or Esc to finish · Shift: straight/45° · Alt: quarter-square snap', room: 'Room — drag to lay floor (current terrain) and walls',
+  room: 'Room — rectangle: drag · polygon: click corners, click the first one (or Enter) to close · round: drag from the centre · floor uses the selected terrain',
+  wall: 'Wall — click corners; click the last point again, right-click or Esc to finish · Shift: straight/45° · Alt: quarter-square snap',
   door: 'Door — click a square edge; clicking an existing door replaces it',
   roof: 'Roof — drag over a building; hide the layer to see inside',
   label: 'Label — click to add (numbers become room badges), click a label to edit, drag to move · labels export only on the DM map unless you tick Include labels',
   stamp: 'Place object — click to place · , and . rotate · Alt-free / snap option in panel', scatter: 'Scatter — paint objects with the brush size and density', select: 'Select — click an object, drag to move · Del delete · , . rotate · - = resize · Ctrl+D copy', stairs: 'Stairs — drag in the direction they go down', xstruct: 'Remove — click or drag over walls, doors, stairs' };
-function setTool(t){ if (t !== 'wall') wallDraft = null; if (t !== 'select') selObj = null; tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); $('stTool').textContent = TOOL_NAMES[t]; if (t !== 'measure') ruler = null; view.style.cursor = t === 'pan' ? 'grab' : ''; drawOverlay(); }
+function setTool(t){ if (t !== 'wall') wallDraft = null; if (t !== 'room') roomDraft = null; if (t !== 'select') selObj = null; tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); $('stTool').textContent = TOOL_NAMES[t]; if (t !== 'measure') ruler = null; view.style.cursor = t === 'pan' ? 'grab' : ''; drawOverlay(); }
 document.querySelectorAll('#tools button').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 
 function buildTerrainPanel(){
@@ -1853,8 +1920,23 @@ function setTod(t){ map.tod = t; setSun(t); drawStructView(); touchSave(); }
 function toggleNight(){ setTod(TOD_ORDER[(TOD_ORDER.indexOf(map.tod || 'day') + 1) % TOD_ORDER.length]); }
 $('todSel').onchange = () => setTod($('todSel').value);
 function applySeason(){ SEASON = map.season || 'summer'; $('seasonSel').value = SEASON; renderAllLayers(); drawStructView(); buildStampPanel(); }
+function applyTop(){ SHOW_TOP = map.showTop !== false; $('bTop').classList.toggle('on', SHOW_TOP); $('bTop').textContent = SHOW_TOP ? '⌂ Roofs & trees' : '⌂ Roofs & trees: off'; }
+function toggleTop(){ map.showTop = !(map.showTop !== false); applyTop(); renderAllLayers(); drawStructView(); touchSave(); }
+$('bTop').onclick = toggleTop;
 $('seasonSel').onchange = () => { map.season = $('seasonSel').value; applySeason(); touchSave(); };
-$('bSide').onclick = () => document.body.classList.toggle('side-open');
+const narrow = () => matchMedia('(max-width:1100px)').matches;
+function sideState(){ const open = narrow() ? document.body.classList.contains('side-open') : !document.body.classList.contains('side-collapsed'); $('sideTab').textContent = open ? '›' : '‹'; }
+function toggleSide(){ if (narrow()) document.body.classList.toggle('side-open'); else { document.body.classList.toggle('side-collapsed'); lsSet('md-side', document.body.classList.contains('side-collapsed') ? '0' : '1'); }
+  sideState(); setTimeout(() => { resizeOverlay(); drawOverlay(); }, 30); }
+$('bSide').onclick = toggleSide; $('sideTab').onclick = toggleSide;
+if (lsGet('md-side') === '0') document.body.classList.add('side-collapsed');
+addEventListener('resize', sideState);
+// collapsible panel sections: each heading folds the controls under it
+(function(){ const side = $('side'), kids = [...side.children]; let sec = null; const closed = new Set((lsGet('md-closed') || '').split('|').filter(Boolean));
+  for (const el of kids){ if (el.tagName === 'H3'){ sec = document.createElement('div'); sec.className = 'sec'; side.insertBefore(sec, el); const key = el.textContent.trim(); sec.dataset.key = key; if (closed.has(key)) sec.classList.add('closed');
+      const s2 = sec; el.onclick = () => { s2.classList.toggle('closed'); lsSet('md-closed', [...side.querySelectorAll('.sec.closed')].map(x => x.dataset.key).join('|')); }; }
+    if (sec) sec.appendChild(el); } })();
+setTimeout(sideState, 0);
 $('fingerNav').onchange = () => lsSet('md-fingernav', $('fingerNav').checked ? '1' : '0');
 $('penPressure').onchange = () => lsSet('md-pressure', $('penPressure').checked ? '1' : '0');
 $('showTouchBar').onchange = () => setTouchUI($('showTouchBar').checked);
@@ -1872,7 +1954,7 @@ function nudgeSel(kind){
 }
 document.querySelectorAll('#touchBar button').forEach(b => b.onclick = () => { const a = b.dataset.a;
   if (a === 'undo') undo(); else if (a === 'redo') redo(); else if (a === 'fit') fit();
-  else if (a === 'done'){ wallDraft = null; ruler = null; rectDrag = null; selObj = null; showSel(); drawOverlay(); }
+  else if (a === 'done'){ if (roomDraft){ finishRoomDraft(); return; } wallDraft = null; ruler = null; rectDrag = null; selObj = null; showSel(); drawOverlay(); }
   else nudgeSel(a); });
 $('fingerNav').checked = lsGet('md-fingernav') === '1'; $('penPressure').checked = lsGet('md-pressure') === '1';
 setTouchUI(lsGet('md-touchbar') === '1' || (lsGet('md-touchbar') === null && matchMedia('(pointer: coarse)').matches), false);
@@ -1881,6 +1963,7 @@ $('nightStr').oninput = () => { map.nightStr = +$('nightStr').value; syncOutputs
 $('lightRad').oninput = () => { map.lightRad = +$('lightRad').value; syncOutputs(); nightSoon(); touchSave(); };
 $('objRandRot').onchange = () => { preRot = 0; rollPre(); drawOverlay(); };
 $('wallTh').onchange = drawOverlay;
+$('roomShape').onchange = () => { roomDraft = null; circleDrag = null; drawOverlay(); };
 $('bReroll').onclick = () => { map.seed = (Math.random() * 1e9) | 0; texCache.clear(); renderView(0, 0, map.cols, map.rows); drawStructView(); touchSave(); };
 $('bUndo').onclick = undo; $('bRedo').onclick = redo; $('bFit').onclick = fit;
 $('mapName').onchange = () => { map.name = $('mapName').value.trim() || 'Untitled map'; $('mapName').value = map.name; touchSave(); };
@@ -1915,8 +1998,10 @@ addEventListener('keydown', e => {
   if (/^Digit[0-9]$/.test(e.code)){ const n = +e.code.slice(5), pos = e.shiftKey ? 9 + n : (n === 0 ? 9 : n - 1); if (n > 0 || !e.shiftKey){ if (DISPLAY[pos] !== undefined) selectTerrain(DISPLAY[pos]); } return; }
   if (k === '[' || k === ']'){ const s = $('brushSize'); s.value = clamp(+s.value + (k === ']' ? .25 : -.25), +s.min, +s.max); syncOutputs(); drawOverlay(); return; }
   if (k === 'n'){ toggleNight(); return; }
+  if (k === 'k'){ toggleTop(); return; }
   if (k === 'g'){ $('gridOn').checked = !$('gridOn').checked; drawOverlay(); return; }
-  if (k === 'escape' || k === 'enter'){ ruler = null; rectDrag = null; drag = null; wallDraft = null; selObj = null; drawOverlay(); }
+  if (k === 'enter' && roomDraft){ finishRoomDraft(); return; }
+  if (k === 'escape' || k === 'enter'){ ruler = null; rectDrag = null; drag = null; wallDraft = null; roomDraft = null; circleDrag = null; selObj = null; drawOverlay(); }
 });
 addEventListener('keyup', e => { if (e.code === 'Space'){ spaceDown = false; view.style.cursor = tool === 'pan' ? 'grab' : ''; } });
 addEventListener('resize', () => { resizeOverlay(); });
@@ -1935,7 +2020,7 @@ function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return nu
 function thumbnail(){ const w = 220, h = Math.max(1, Math.round(w * map.rows / map.cols)); const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
   for (const l of map.layers) if (l.visible){ const lc = layerCanvases(l); x.globalAlpha = l.opacity; x.drawImage(lc.t, 0, 0, w, h); x.drawImage(lc.s, 0, 0, w, h); } x.globalAlpha = 1; return c.toDataURL('image/jpeg', .75); }
 const extraLayers = m => (m.layers || []).slice(1).map(l => ({ id: l.id, name: l.name, visible: l.visible, opacity: l.opacity, dm: l.dm, labels: l.labels, struct: l.struct }));
-function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
+function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
 let saveTimer = 0;
 function touchSave(){ dirtySave = true; $('stSave').textContent = 'Unsaved changes…'; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500); }
 async function saveNow(){
@@ -1945,14 +2030,14 @@ async function saveNow(){
 }
 function fromRecord(r){ const m = fromRecord0(r), n = m.cols * R * m.rows * R;
   return ensureLayers(m, (r.layers || []).filter(l => l && l.labels && l.labels.length === n).map(l => ({ id: String(l.id || uid()), name: String(l.name || 'Layer').slice(0, 40), visible: l.visible !== false, opacity: clamp(+l.opacity || 1, .05, 1), dm: !!l.dm, labels: new Uint8Array(l.labels), struct: cleanStruct(l.struct) })), r.activeLayer); }
-function fromRecord0(r){ return gridInit({ season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), created: r.created, thumb: r.thumb }); }
+function fromRecord0(r){ return gridInit({ showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), created: r.created, thumb: r.thumb }); }
 
 function openMap(m){
   map = gridInit(m); if (!map.layers) ensureLayers(map); map.custom = map.custom || []; LV.forEach(c => { c.t.remove(); c.s.remove(); }); LV.clear();
   { const al = map.layers.find(l => l.id === map.activeLayer) || map.layers[0]; map.labels = al.labels; map.struct = al.struct; } $('nightStr').value = map.nightStr ?? .7; $('lightRad').value = map.lightRad ?? 1; $('occlude').checked = map.occlude !== false; applyCustoms(); buildCustomPanel(); undoStack = []; redoStack = []; updUndo(); texCache.clear();
   if (curTerrain >= TERRAINS.length || TERRAINS[curTerrain].hole) selectTerrain(DISPLAY[0]); else selectTerrain(curTerrain);
   $('mapName').value = map.name; $('soft').value = map.soft; syncOutputs(); updateInfo();
-  SEASON = map.season || 'summer'; $('seasonSel').value = SEASON; buildStampPanel(); map.tod = map.tod || (map.night ? 'night' : 'day'); setSun(map.tod);
+  applyTop(); SEASON = map.season || 'summer'; $('seasonSel').value = SEASON; buildStampPanel(); map.tod = map.tod || (map.night ? 'night' : 'day'); setSun(map.tod);
   setupCanvas(); buildLayerPanel(); fit(); lsSet('md-last', map.id);
   $('stSave').textContent = 'Saved';
 }
@@ -2024,7 +2109,7 @@ function cleanStruct(o){ const s = emptyStruct(); if (!o) return s; const num = 
   for (const r of o.roofs || []) s.roofs.push({ x0: num(r.x0), y0: num(r.y0), x1: num(r.x1), y1: num(r.y1), mat: ROOFMATS[r.mat] ? r.mat : 'tiles', ...(/^#[0-9a-f]{6}$/i.test(r.c || '') ? { c: r.c } : {}) });
   for (const t of o.stairs || []) s.stairs.push({ x0: num(t.x0), y0: num(t.y0), x1: num(t.x1), y1: num(t.y1), dir: 'nsew'.includes(t.dir) && t.dir ? t.dir : 's' });
   return s; }
-function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)),
+function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)),
   layers: extraLayers(m).map(l => ({ ...l, labels: u8ToB64(new Uint8Array(l.labels)) })) }; }
 function parseProject(o){
   if (!o || o.format !== 'map-drawing/1') throw new Error('Not a Map Drawing project file');
@@ -2040,7 +2125,7 @@ function parseProject(o){
   const base = Math.max(0, TERRAINS.findIndex((t, i) => i < BUILTIN && t.key === o.base));
   const grid = ['square', 'hexflat', 'hexpointy'].includes(o.grid) ? o.grid : 'square';
   if (grid !== 'square'){ const e = hexExtent(grid, o.hcols | 0, o.hrows | 0); if (!(o.hcols > 0 && o.hrows > 0) || Math.ceil(e.w - 1e-6) !== cols || Math.ceil(e.h - 1e-6) !== rows) throw new Error('Hex grid size does not match the map'); }
-  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', _extras: extras });
+  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, _extras: extras });
 }
 $('bImport').onclick = () => $('fileIn').click();
 $('fileIn').onchange = async () => {
@@ -2051,22 +2136,22 @@ $('fileIn').onchange = async () => {
   catch (err){ alert('Import failed: ' + err.message); }
 };
 
-function expSettings(){ const prof = document.querySelector('input[name=prof]:checked').value; const P = prof === 'tracker' ? map.px : clamp(Math.round(+$('ePx').value) || 80, 8, 400); return { prof, P, grid: prof !== 'tracker' && $('eGrid').checked, dm: prof === 'dm', labels: prof !== 'tracker' && $('eLabels').checked, tod: $('eTod').value, season: $('eSeason').value }; }
-const expName = s => `${slug(map.name)}${s.season && s.season !== 'summer' ? '_' + s.season : ''}${s.tod && s.tod !== 'day' ? '_' + s.tod : ''}_${isHex(map) ? `hex-${map.grid === 'hexflat' ? 'flat' : 'pointy'}_${map.hcols}x${map.hrows}` : `${map.cols}x${map.rows}`}_${s.P}px${s.dm ? '_DM' : ''}.png`;
+function expSettings(){ const prof = document.querySelector('input[name=prof]:checked').value; const P = prof === 'tracker' ? map.px : clamp(Math.round(+$('ePx').value) || 80, 8, 400); return { prof, P, grid: prof !== 'tracker' && $('eGrid').checked, dm: prof === 'dm', labels: prof !== 'tracker' && $('eLabels').checked, tod: $('eTod').value, season: $('eSeason').value, top: $('eTop').checked }; }
+const expName = s => `${slug(map.name)}${s.top === false ? '_open' : ''}${s.season && s.season !== 'summer' ? '_' + s.season : ''}${s.tod && s.tod !== 'day' ? '_' + s.tod : ''}_${isHex(map) ? `hex-${map.grid === 'hexflat' ? 'flat' : 'pointy'}_${map.hcols}x${map.hrows}` : `${map.cols}x${map.rows}`}_${s.P}px${s.dm ? '_DM' : ''}.png`;
 function expHint(){ const s = expSettings(); $('expPlayerOpts').style.opacity = s.prof !== 'tracker' ? 1 : .35; $('ePx').disabled = $('eGrid').disabled = $('eLabels').disabled = s.prof === 'tracker';
   const [ow, oh] = exportSize(map, s.P); $('eHint').innerHTML = `Output: <b>${ow} × ${oh} px</b> — <code>${expName(s)}</code>`; }
 document.querySelectorAll('input[name=prof]').forEach(r => r.onchange = () => { $('eLabels').checked = r.value === 'dm'; expHint(); });
-$('eLabels').onchange = expHint; $('eTod').onchange = expHint; $('eSeason').onchange = expHint; $('ePx').oninput = expHint; $('eGrid').onchange = expHint;
+$('eLabels').onchange = expHint; $('eTod').onchange = expHint; $('eTop').onchange = expHint; $('eSeason').onchange = expHint; $('ePx').oninput = expHint; $('eGrid').onchange = expHint;
 $('bExport').onclick = () => { const hx = isHex(map);
   $('eTrkTxt').textContent = hx ? `${map.px} px hexes (${map.grid === 'hexflat' ? 'flat' : 'pointy'} top)` : `${map.px} × ${map.px} px per square`;
   $('eTrkHint').textContent = hx ? `Set the tracker's hex size to ${map.px} px; the image starts on the edge of the first hex.` : `Set the tracker's grid to ${map.px} px; the image starts on a square corner.`;
-  $('eTod').value = map.tod || 'day'; $('eSeason').value = map.season || 'summer';
+  $('eTod').value = map.tod || 'day'; $('eTop').checked = map.showTop !== false; $('eSeason').value = map.season || 'summer';
   if (!$('dlgExp').dataset.touched) $('ePx').value = Math.min(400, map.px * 2); expHint(); $('dlgExp').showModal(); };
 $('ePx').addEventListener('input', () => $('dlgExp').dataset.touched = 1);
 $('eCancel').onclick = () => $('dlgExp').close();
 $('eOk').onclick = async () => {
   const s = expSettings(); $('busy').classList.add('on'); await new Promise(r => setTimeout(r, 30));
-  try { const c = renderFull(map, s.P, s.grid, { dm: s.dm, labels: s.labels, tod: s.tod, season: s.season }); c.toBlob(b => { download(b, expName(s)); $('busy').classList.remove('on'); }, 'image/png'); }
+  try { const c = renderFull(map, s.P, s.grid, { dm: s.dm, labels: s.labels, tod: s.tod, season: s.season, top: s.top }); c.toBlob(b => { download(b, expName(s)); $('busy').classList.remove('on'); }, 'image/png'); }
   catch (err){ $('busy').classList.remove('on'); alert('Export failed: ' + err.message); }
 };
 $('eJson').onclick = () => download(new Blob([JSON.stringify(projectJSON(map))], { type: 'application/json' }), `${slug(map.name)}.mapdraw.json`);
