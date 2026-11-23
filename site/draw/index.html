@@ -196,7 +196,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <input type="range" id="brushSize" min="0.25" max="8" step="0.25" value="1.5">
 
     <h3>Objects</h3>
-    <div class="tabs" id="stampTabs"><button data-cat="nature" class="on">Nature</button><button data-cat="ruins">Ruins</button><button data-cat="dungeon">Dungeon</button><button data-cat="furniture">Furniture</button><button data-cat="camp">Camp</button><button data-cat="world">World map</button></div>
+    <div class="tabs" id="stampTabs"><button data-cat="nature" class="on">Nature</button><button data-cat="ruins">Ruins</button><button data-cat="dungeon">Dungeon</button><button data-cat="furniture">Furniture</button><button data-cat="camp">Camp</button><button data-cat="world">World map</button><button data-cat="japan">Japan</button></div>
     <div id="stamps"></div>
     <div class="row"><label for="objSize">Object size</label><output id="objSizeOut"></output></div>
     <input type="range" id="objSize" min="0.4" max="2.5" step="0.05" value="1">
@@ -210,8 +210,8 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <div class="row"><label for="wallMat">Wall material</label><select id="wallMat"><option value="stone">Stone</option><option value="wood">Wood</option><option value="cave">Rough cave</option></select></div>
     <div class="row"><label for="wallTh">Wall thickness</label><select id="wallTh"><option value="0.15">Thin</option><option value="0.25" selected>Normal</option><option value="0.4">Thick</option></select></div>
     <div class="row"><label for="roomShape">Room shape</label><select id="roomShape"><option value="rect">Rectangle (drag)</option><option value="poly">Polygon (click corners)</option><option value="circle">Round (drag radius)</option></select></div>
-    <div class="row"><label for="roofMat">Roof</label><select id="roofMat"><option value="tiles">Clay tiles</option><option value="slate">Slate</option><option value="thatch">Thatch</option><option value="shingles">Wood shingles</option></select></div>
-    <div class="row"><label for="doorType">Door type</label><select id="doorType"><option value="door">Door</option><option value="double">Double door</option><option value="secret">Secret door</option><option value="portcullis">Portcullis</option><option value="window">Window</option><option value="opening">Open archway</option></select></div>
+    <div class="row"><label for="roofMat">Roof</label><select id="roofMat"><option value="tiles">Clay tiles</option><option value="slate">Slate</option><option value="thatch">Thatch</option><option value="shingles">Wood shingles</option><optgroup label="Japan"><option value="kawara">Kawara tiles</option><option value="hiwada">Cypress bark</option><option value="copper">Copper (verdigris)</option></optgroup></select></div>
+    <div class="row"><label for="doorType">Door type</label><select id="doorType"><option value="door">Door</option><option value="double">Double door</option><option value="secret">Secret door</option><option value="portcullis">Portcullis</option><option value="window">Window</option><option value="opening">Open archway</option><option value="shoji">Shoji screen</option></select></div>
     <div class="row"><label for="showSecret">Show secret doors</label><input type="checkbox" id="showSecret" checked></div>
 
     <h3>Labels</h3>
@@ -371,9 +371,14 @@ const TERRAINS = [
   { key:'lrock',  name:'Light rock',  prio:.5, soft:.4, tile:8,  ramp:['#4b4842','#5f5b54','#746f67','#8a847a','#a19a8f','#bab3a7'], edge:{ color:'rgba(20,16,12,.5)', w:.14 } },
   { key:'forest', name:'Forest',      prio:4.4, soft:.3, ramp:['#0e1c0b','#1a3014','#27461d','#365c26','#4b7531','#689442'] },
   { key:'pine',   name:'Pine forest', prio:4.6, soft:.3, ramp:['#0a1812','#11271c','#1a3927','#254c32','#336240','#497b51'] },
+  // Japan pack
+  { key:'tatami', name:'Tatami',      prio:9.6, soft:.02, ramp:['#3e3f20','#5a5a2c','#76743c','#8f8c4f','#a8a466','#bfbb84'], edge:{ color:'rgba(14,10,4,.75)', w:.08 } },
+  { key:'gravel', name:'Raked gravel', prio:2.5, soft:.15, ramp:['#6f6e68','#87867f','#9e9d96','#b4b3ac','#c8c7c1','#dbdad5'] },
+  { key:'moss',   name:'Moss',        prio:3.2, soft:1,   ramp:['#1c3013','#294619','#375d20','#467329','#588833','#6f9e42'] },
+  { key:'engawa', name:'Light planks', prio:9.2, soft:.02, ppc:3, gen:'wood', ramp:['#3a2a1a','#5a4128','#7a5a38','#94714a','#ad8a5e','#c4a477'], edge:{ color:'rgba(14,7,2,.7)', w:.07 } },
 ];
 // panel order and shortcuts (1–9, 0, then Shift+1…)
-const DISPLAY = ['grass','forest','pine','dirt','sand','rock','lrock','snow','water','lava','cobble','flag','wood'].map(k => TERRAINS.findIndex(t => t.key === k));
+const DISPLAY = ['grass','forest','pine','dirt','sand','rock','lrock','snow','water','lava','cobble','flag','wood','tatami','engawa','gravel','moss'].map(k => TERRAINS.findIndex(t => t.key === k));
 /* ---------- palette: colour ramps generated from a base colour ---------- */
 function hexToHsl(hex){ let [r, g, b] = hexRgb(hex).map(v => v / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let h = 0, s = 0;
   if (mx !== mn){ const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return [h, s, l]; }
@@ -391,12 +396,16 @@ const PALETTE = [
 ];
 
 const BUILTIN = TERRAINS.length;
+// Recoloured terrains live in a fixed slot range so new built-in terrains never shift them.
+// Saves made before this used slot 13 onwards (OLD_CUSTOM_BASE) and are converted when opened.
+const CUSTOM_BASE = 64, OLD_CUSTOM_BASE = 13;
+for (let i = BUILTIN; i < CUSTOM_BASE; i++) TERRAINS[i] = { ...TERRAINS[0], key: '_' + i, name: '', hole: true };
 // per-map recoloured terrains live after the built-ins; indices stay stable (deleted ones leave a hole)
 function customDef(c, j){ const bi = TERRAINS.findIndex((t, i) => i < BUILTIN && t.key === c.gen), b = TERRAINS[bi], ramp = rampFromHex(c.hex);
   const pname = PALETTE.flatMap(g => g[1]).find(x => x[1] === c.hex);
   return { ...b, key: 'c:' + j, gen: c.gen, hex: c.hex, baseIdx: bi, name: `${b.name} · ${pname ? pname[0] : c.hex}`, prio: b.prio + .001 * (j + 1), ramp, rgb: ramp.map(hexRgb), custom: true,
     edge: b.edge && b.key === 'water' ? { ...b.edge, color: (() => { const [r, g, bb] = hexRgb(ramp[5]); return `rgba(${r},${g},${bb},.55)`; })() } : b.edge }; }
-function applyCustoms(){ TERRAINS.length = BUILTIN; (map.custom || []).forEach((c, j) => TERRAINS.push(c ? customDef(c, j) : { ...TERRAINS[0], key: 'c:' + j, hole: true })); }
+function applyCustoms(){ TERRAINS.length = CUSTOM_BASE; (map.custom || []).forEach((c, j) => TERRAINS.push(c ? customDef(c, j) : { ...TERRAINS[0], key: 'c:' + j, hole: true })); }
 const keyLabel = pos => pos < 10 ? String((pos + 1) % 10) : '⇧' + (pos - 9);
 TERRAINS.forEach(t => t.rgb = t.ramp.map(hexRgb));
 
@@ -439,8 +448,20 @@ function genTex(T, P, seed, salt){
           else { t = 0.28 + 0.4 * shade + 0.18 * fbm(u, v, 6, 3, s + 5) - o.f1 * (K === 'cobble' ? 0.35 : 0.12) + g * 0.08;
                  if (edge < grout * 1.8) t += 0.08; }
           break; }
+        case 'tatami': { // mats 1×2 squares, alternating direction in 2×2 blocks, black cloth border (heri)
+          const cu = u * TILE_CELLS, cv = v * TILE_CELLS, bx = Math.floor(cu / 2), by = Math.floor(cv / 2), lx = cu - bx * 2, ly = cv - by * 2, hz = (bx + by) % 2 === 0;
+          const mat = hz ? Math.floor(ly) : Math.floor(lx), along = hz ? lx : ly, across = hz ? ly - mat : lx - mat;
+          const shade = hash(bx * 7 + by * 13 + mat, 3, s);
+          t = 0.5 + 0.12 * (shade - .5) + 0.07 * Math.sin(along * Math.PI * 2 * 22) + g * 0.05 + 0.06 * (fbm(u, v, 6, 2, s) - .5);
+          if (across < .07 || across > .93){ t = 0.02; k = .55; }
+          else if (along < .02 || along > 1.98) t = 0.08;
+          break; }
+        case 'gravel': { // raked sand/gravel garden lines with a slow wobble
+          const rake = Math.sin((v * TILE_CELLS * 6 + (fbm(u, v, 2, 3, s) - .5) * 1.6) * Math.PI * 2);
+          t = 0.55 + 0.14 * rake + g * 0.3; if (hash(px, py, s + 9) > .985) t -= .35; break; }
+        case 'moss': { const cu = fbm(u, v, 10, 3, s + 21); t = 0.2 + 0.4 * fbm(u, v, 4, 5, s) + 0.32 * cu * cu + g * 0.07; if (hash(px, py, s + 4) > .994) t = .95; break; }
         case 'wood': {
-          const rows = TILE_CELLS * 2, row = Math.floor(v * rows), fy = v * rows - row;
+          const rows = TILE_CELLS * (T.ppc || 2), row = Math.floor(v * rows), fy = v * rows - row;
           const off = hash(row, 11, s) * 0.5, uu = ((u - off) % 1 + 1) % 1, plank = Math.floor(uu * 2), du = (uu * 2) % 1;
           const shade = hash(row * 3 + plank, 5, s);
           const grain = Math.sin((fy * 5 + fbm(u, v, 8, 3, s + row) * 3.5) * Math.PI * 2);
@@ -537,8 +558,8 @@ function drawCanopy(x, S, P, rnd, r, pine){
 // Seasons recolour natural built-in terrains (recoloured customs keep the user's colour).
 const SEASON_RAMPS = {
   spring: { grass: ['#22401a','#325c22','#457a2d','#5b9438','#78af47','#98c95f'], forest: ['#11240d','#1d3e17','#2d5a22','#40752d','#59933b','#7cb24e'] },
-  autumn: { grass: ['#38371a','#524d24','#6b6330','#847a3c','#9c904d','#b3a662'], forest: ['#2a120a','#4a2210','#7a3814','#a8541c','#c97a28','#e0a03c'], dirt: ['#33241a','#483323','#5d432f','#72543b','#876748','#9d7c5a'] },
-  winter: { grass: ['#8a9aab','#a5b5c4','#bdcad6','#d1dce5','#e3eaf1','#f3f7fa'], forest: ['#2a2622','#3d3833','#554d45','#6e655c','#8c857c','#b3ada6'],
+  autumn: { moss: ['#2a2e14','#3d431b','#525a22','#68702c','#7d8638','#949c48'], grass: ['#38371a','#524d24','#6b6330','#847a3c','#9c904d','#b3a662'], forest: ['#2a120a','#4a2210','#7a3814','#a8541c','#c97a28','#e0a03c'], dirt: ['#33241a','#483323','#5d432f','#72543b','#876748','#9d7c5a'] },
+  winter: { moss: ['#5d6e66','#7a8a83','#98a7a1','#b6c3bf','#d0dad8','#e9eff0'], grass: ['#8a9aab','#a5b5c4','#bdcad6','#d1dce5','#e3eaf1','#f3f7fa'], forest: ['#2a2622','#3d3833','#554d45','#6e655c','#8c857c','#b3ada6'],
             pine: ['#0d1c16','#1a2f25','#2e4a3a','#7d968b','#c3d3cc','#f0f5f3'], dirt: ['#4a4541','#5f5954','#77706a','#908982','#aba59e','#c8c3bd'],
             water: ['#4f7286','#668b9e','#7fa4b6','#9bbecc','#bad5e0','#d8eaf0'], sand: ['#9a8e74','#b3a78c','#c9bea4','#d9d0ba','#e6dfce','#f2eee4'] },
 };
@@ -594,7 +615,7 @@ const WALLMATS = {
 };
 Object.values(WALLMATS).forEach(w => w.rgb = w.ramp.map(hexRgb));
 function getWallTex(mat, P, seed){ const key = 'w:' + mat + ':' + P + ':' + seed; let c = texCache.get(key); if (!c){ c = genTex(WALLMATS[mat], P, seed, 200 + Object.keys(WALLMATS).indexOf(mat)); texCache.set(key, c); } return c; }
-const DOOR_CUT = { door: 1, double: 1, portcullis: 1, opening: 1 };
+const DOOR_CUT = { door: 1, double: 1, portcullis: 1, opening: 1, shoji: 1 };
 
 function wallPath(ctx, w, P, seed){
   if (w.mat !== 'cave'){ ctx.moveTo(w.x1 * P, w.y1 * P); ctx.lineTo(w.x2 * P, w.y2 * P); return; }
@@ -657,6 +678,12 @@ function drawDoor(ctx, d, P, opt){
     for (let i = 0; i <= 6; i++){ const xx = -L / 2 + L * i / 6; ctx.fillRect(xx - bw / 2, -tt / 2, bw, tt); }
     ctx.fillStyle = 'rgba(200,205,215,.35)'; ctx.fillRect(-L / 2, -bw / 2, L, Math.max(.8, bw * .3));
     for (let i = 0; i <= 6; i++){ const xx = -L / 2 + L * i / 6; ctx.fillRect(xx - bw / 2, -tt / 2, Math.max(.8, bw * .3), tt); }
+  } else if (d.type === 'shoji'){ // sliding paper screen: light wood frame, paper panes, lattice
+    const tt = P * .1; ctx.fillStyle = '#2a1b0e'; ctx.fillRect(-L / 2 - 1, -tt / 2 - 1, L + 2, tt + 2);
+    ctx.fillStyle = '#efe7d3'; ctx.fillRect(-L / 2, -tt / 2, L, tt);
+    ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = Math.max(.8, P / 60); ctx.beginPath();
+    for (let i = 1; i < 8; i++){ const xx = -L / 2 + L * i / 8; ctx.moveTo(xx, -tt / 2); ctx.lineTo(xx, tt / 2); } ctx.moveTo(-L / 2, 0); ctx.lineTo(L / 2, 0); ctx.stroke();
+    ctx.strokeStyle = '#5a3e22'; ctx.lineWidth = Math.max(1.2, P / 35); ctx.strokeRect(-L / 2, -tt / 2, L, tt); ctx.beginPath(); ctx.moveTo(0, -tt / 2); ctx.lineTo(0, tt / 2); ctx.stroke();
   } else if (d.type === 'window'){
     ctx.fillStyle = '#121110'; ctx.fillRect(-L * .42, -t * .32, L * .84, t * .64);
     ctx.fillStyle = 'rgba(160,210,235,.9)'; ctx.fillRect(-L * .38, -t * .18, L * .76, t * .36);
@@ -1118,18 +1145,128 @@ const SCATTER_SETS = {
   wwoods:  { name: 'World: forest', keys: ['woods', 'woods', 'pinewood'] },
   debris:  { name: 'Ruin debris', keys: ['rubble', 'rubble', 'rubble', 'rocks', 'rocks', 'tiles'] },
 };
+// ---- Japan pack objects ----
+Object.assign(RAMP, {
+  sakura:  ['#5a2a3a','#8a4a62','#b86e8a','#d895ad','#ecbccd','#f9dde7'].map(hexRgb),
+  momiji:  ['#3a0c08','#5e160d','#8a2414','#b23a1c','#d0582a','#e8823e'].map(hexRgb),
+  bamboo:  ['#2c4418','#3f5f20','#55792a','#6c9234','#87aa44','#a6c25e'].map(hexRgb),
+  lacquer: ['#3a0a06','#5e140b','#8a2412','#b3341b','#cf4a26','#e46a3c'].map(hexRgb),
+});
+function star5(c, x, y, r, rot){ c.beginPath(); for (let i = 0; i < 10; i++){ const a = rot + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.closePath(); }
+function cloudPad(c, x, y, rx, ry, rnd, R){
+  c.fillStyle = 'rgba(6,14,9,.92)'; c.beginPath(); c.ellipse(x, y, rx * 1.06, ry * 1.1, 0, 0, 7); c.fill();
+  c.fillStyle = litFill(c, x, y, Math.max(rx, ry), RAMP.pine, .15, .85); c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 7); c.fill();
+  c.lineCap = 'round'; for (let i = 0; i < 30; i++){ const a = rnd() * 6.28, d = Math.sqrt(rnd()), px = x + Math.cos(a) * rx * d * .9, py = y + Math.sin(a) * ry * d * .9;
+    c.strokeStyle = rgba(RAMP.pine, clamp(.55 - (px - x + py - y) / (rx + ry) * .5 + (rnd() - .5) * .2, 0, 1), .6); c.lineWidth = Math.max(.6, R / 70);
+    c.beginPath(); c.moveTo(px, py); c.lineTo(px + Math.cos(a) * R * .05, py + Math.sin(a) * R * .05); c.stroke(); }
+}
+function vermilionBeam(c, x0, x1, y, h, R){
+  const lift = h * .55;
+  c.fillStyle = 'rgba(10,6,4,.95)'; c.beginPath(); c.moveTo(x0 - 2, y - h / 2 - lift - 1); c.quadraticCurveTo((x0 + x1) / 2, y - h / 2 + lift * .3, x1 + 2, y - h / 2 - lift - 1); c.lineTo(x1 + 2, y + h / 2 - lift * .4 + 1); c.quadraticCurveTo((x0 + x1) / 2, y + h / 2 + lift * .3 + 1, x0 - 2, y + h / 2 - lift * .4 + 1); c.closePath(); c.fill();
+  c.fillStyle = linFill(c, 0, y - h / 2, 0, y + h / 2, RAMP.lacquer, .9, .4); c.beginPath(); c.moveTo(x0, y - h / 2 - lift); c.quadraticCurveTo((x0 + x1) / 2, y - h / 2 + lift * .3, x1, y - h / 2 - lift); c.lineTo(x1, y + h / 2 - lift * .4); c.quadraticCurveTo((x0 + x1) / 2, y + h / 2 + lift * .3, x0, y + h / 2 - lift * .4); c.closePath(); c.fill();
+}
+Object.assign(STAMPS, {
+  sakura:  { cat: 'japan', name: 'Cherry tree', w: 2, h: 2, z: 3, hg: 2.2, tint: 'sakura', out: 1, draw(c, R, rnd){
+    treeCrown(c, R * .92, RAMP.sakura, rnd, R, 9 + (rnd() * 3 | 0));
+    for (let i = 0; i < 26; i++){ const a = rnd() * 6.28, d = R * (.85 + rnd() * .35); c.fillStyle = rgba(RAMP.sakura, .75 + rnd() * .25, .85); c.beginPath(); c.ellipse(Math.cos(a) * d, Math.sin(a) * d, R * .025, R * .015, rnd() * 3, 0, 7); c.fill(); } } },
+  maple:   { cat: 'japan', name: 'Maple', w: 1.8, h: 1.8, z: 3, hg: 2, tint: 'momiji', out: 1, draw(c, R, rnd){
+    treeCrown(c, R * .8, RAMP.momiji, rnd, R, 11);
+    for (let i = 0; i < 40; i++){ const a = rnd() * 6.28, d = Math.sqrt(rnd()) * R * .78, x = Math.cos(a) * d, y = Math.sin(a) * d;
+      c.fillStyle = rgba(RAMP.momiji, clamp(.6 - (x + y) / R * .4 + (rnd() - .5) * .3, 0, 1), .8); star5(c, x, y, R * (.035 + rnd() * .025), rnd() * 6); c.fill(); } } },
+  jpine:   { cat: 'japan', name: 'Black pine', w: 2, h: 2, z: 3, hg: 2, tint: 'pine', out: 1, draw(c, R, rnd){
+    const pads = []; for (let i = 0; i < 5; i++){ const a = i / 5 * 6.28 + rnd() * .6, d = R * (.42 + rnd() * .25); pads.push([Math.cos(a) * d, Math.sin(a) * d, R * (.3 + rnd() * .1), R * (.21 + rnd() * .06)]); }
+    c.lineCap = 'round'; c.strokeStyle = rgba(RAMP.bark, .2); for (const [x, y] of pads){ c.lineWidth = R * .07; c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(x * .3 + (rnd() - .5) * R * .3, y * .7, x, y); c.stroke(); }
+    disc(c, 0, 0, R * .12, litFill(c, 0, 0, R * .12, RAMP.bark));
+    pads.sort((a, b) => a[1] - b[1]).forEach(([x, y, rx, ry]) => cloudPad(c, x, y, rx, ry, rnd, R)); cloudPad(c, 0, -R * .05, R * .28, R * .2, rnd, R); } },
+  bamboo:  { cat: 'japan', name: 'Bamboo', w: 1.4, h: 1.4, z: 3, hg: 2.4, tint: 'bamboo', out: 1, draw(c, R, rnd){
+    const n = 12 + (rnd() * 6 | 0), stalks = []; for (let i = 0; i < n; i++){ const a = rnd() * 6.28, d = Math.sqrt(rnd()) * R * .4; stalks.push([Math.cos(a) * d, Math.sin(a) * d]); }
+    c.lineCap = 'round';
+    for (const [x, y] of stalks) for (let k = 0; k < 8; k++){ const a = rnd() * 6.28, l = R * (.28 + rnd() * .3), mx = x + Math.cos(a) * l * .5, my = y + Math.sin(a) * l * .5, ex = x + Math.cos(a) * l, ey = y + Math.sin(a) * l;
+      c.fillStyle = rgba(RAMP.bamboo, .25 + rnd() * .6, .85); c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(mx + Math.cos(a + 1.57) * R * .05, my + Math.sin(a + 1.57) * R * .05, ex, ey); c.quadraticCurveTo(mx - Math.cos(a + 1.57) * R * .05, my - Math.sin(a + 1.57) * R * .05, x, y); c.fill(); }
+    for (const [x, y] of stalks){ disc(c, x, y, R * .07, 'rgba(10,18,6,.9)'); disc(c, x, y, R * .058, litFill(c, x, y, R * .045, RAMP.bamboo, .4, 1)); c.strokeStyle = rgba(RAMP.bamboo, .15); c.lineWidth = Math.max(.5, R / 90); c.beginPath(); c.arc(x, y, R * .028, 0, 7); c.stroke(); } } },
+  mossrock:{ cat: 'japan', name: 'Garden rock', w: 1, h: 1, z: 2, hg: .7, tint: 'stone', out: 1, draw(c, R, rnd){
+    rock(c, 0, 0, R * .4, rnd, R); c.save(); c.globalCompositeOperation = 'source-atop';
+    for (let i = 0; i < 18; i++){ const a = rnd() * 6.28, d = R * .35 * Math.sqrt(rnd()), x = Math.cos(a) * d - R * .08, y = Math.sin(a) * d - R * .1; c.fillStyle = rgba(RAMP.grass, .4 + rnd() * .4, .75); c.beginPath(); c.arc(x, y, R * (.03 + rnd() * .05), 0, 7); c.fill(); }
+    c.restore(); } },
+  stepping:{ cat: 'japan', name: 'Stepping stones', w: 2, h: .6, z: 0, hg: .05, tint: 'stone', out: 1, draw(c, R, rnd){
+    for (let i = 0; i < 4; i++){ const x = -R * .72 + i * R * .48, y = (rnd() - .5) * R * .16, r = R * (.16 + rnd() * .04);
+      c.fillStyle = 'rgba(12,11,10,.8)'; blobPath(c, x, y, r * 1.08, 8, .12, mulberry(i * 31 + 5)); c.fill();
+      c.fillStyle = linFill(c, x - r, y - r, x + r, y + r, RAMP.stone, .85, .45); blobPath(c, x, y, r, 8, .12, mulberry(i * 31 + 5)); c.fill(); } } },
+  torou:   { cat: 'japan', name: 'Stone lantern', w: .9, h: .9, z: 3, hg: 1.6, tint: 'stone', out: 1, light: 2.5, draw(c, R, rnd){
+    const s = R * .3; c.fillStyle = 'rgba(12,11,10,.9)'; c.fillRect(-s - 1, -s - 1, 2 * s + 2, 2 * s + 2); c.fillStyle = linFill(c, -s, -s, s, s, RAMP.stone, .6, .2); c.fillRect(-s, -s, 2 * s, 2 * s);
+    const hx = k => { c.beginPath(); for (let i = 0; i < 6; i++){ const a = Math.PI / 6 + i * Math.PI / 3; c.lineTo(Math.cos(a) * R * .38 * k, Math.sin(a) * R * .38 * k); } c.closePath(); };
+    c.fillStyle = 'rgba(12,11,10,.92)'; hx(1.06); c.fill(); c.fillStyle = litFill(c, 0, 0, R * .38, RAMP.stone, .25, .95); hx(1); c.fill();
+    c.strokeStyle = 'rgba(20,18,16,.5)'; c.lineWidth = Math.max(.7, R / 60); c.beginPath(); for (let i = 0; i < 6; i++){ const a = Math.PI / 6 + i * Math.PI / 3; c.moveTo(0, 0); c.lineTo(Math.cos(a) * R * .38, Math.sin(a) * R * .38); } c.stroke();
+    disc(c, 0, 0, R * .09, 'rgba(12,11,10,.9)'); disc(c, 0, 0, R * .075, litFill(c, 0, 0, R * .075, RAMP.stone, .4, 1)); } },
+  chochin: { cat: 'japan', name: 'Paper lantern', w: .5, h: .5, z: 3, hg: .8, tint: 'lacquer', light: 3, draw(c, R, rnd){
+    c.fillStyle = 'rgba(10,6,4,.9)'; c.beginPath(); c.ellipse(0, 0, R * .17, R * .2, 0, 0, 7); c.fill();
+    const g = c.createRadialGradient(-R * .05, -R * .06, R * .02, 0, 0, R * .2); g.addColorStop(0, '#ffd58a'); g.addColorStop(.5, rgba(RAMP.lacquer, .85)); g.addColorStop(1, rgba(RAMP.lacquer, .35));
+    c.fillStyle = g; c.beginPath(); c.ellipse(0, 0, R * .16, R * .19, 0, 0, 7); c.fill();
+    c.strokeStyle = 'rgba(40,10,5,.5)'; c.lineWidth = Math.max(.5, R / 90); for (const k of [-.5, 0, .5]){ c.beginPath(); c.ellipse(0, R * .19 * k, R * .16 * Math.sqrt(1 - k * k), R * .02, 0, 0, 7); c.stroke(); }
+    c.fillStyle = '#16100c'; c.fillRect(-R * .07, -R * .22, R * .14, R * .04); c.fillRect(-R * .07, R * .18, R * .14, R * .04); } },
+  torii:   { cat: 'japan', name: 'Torii gate', w: 3, h: .8, z: 3, hg: 2.5, tint: 'lacquer', out: 1, draw(c, R, rnd){
+    for (const sx of [-1, 1]){ disc(c, sx * R * 1.0, R * .22, R * .15, 'rgba(10,6,4,.95)'); disc(c, sx * R * 1.0, R * .22, R * .13, litFill(c, sx * R * 1.0, R * .22, R * .13, RAMP.lacquer, .3, .95)); }
+    c.fillStyle = 'rgba(10,6,4,.95)'; c.fillRect(-R * 1.25, R * .07, R * 2.5, R * .12); c.fillStyle = linFill(c, 0, R * .08, 0, R * .18, RAMP.lacquer, .85, .4); c.fillRect(-R * 1.24, R * .08, R * 2.48, R * .1);
+    vermilionBeam(c, -R * 1.45, R * 1.45, -R * .02, R * .3, R);
+    c.fillStyle = '#16100c'; c.beginPath(); c.moveTo(-R * 1.47, -R * .3); c.quadraticCurveTo(0, -R * .1, R * 1.47, -R * .3); c.lineTo(R * 1.47, -R * .17); c.quadraticCurveTo(0, R * .01, -R * 1.47, -R * .17); c.closePath(); c.fill();
+    c.fillStyle = rgba(RAMP.lacquer, .5); c.fillRect(-R * .1, -R * .1, R * .2, R * .16); c.strokeStyle = '#c9a23a'; c.lineWidth = Math.max(.6, R / 70); c.strokeRect(-R * .1, -R * .1, R * .2, R * .16); } },
+  redbridge:{ cat: 'japan', name: 'Arched bridge', w: 1.4, h: 3, z: 1, hg: .5, tint: 'lacquer', out: 1, draw(c, R, rnd){
+    const w = R * 1.15, h = R * 2.8; plankRect(c, 0, 0, w * .86, h, 0, R, true, RAMP.wood, rnd);
+    const g = c.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, 'rgba(0,0,0,.18)'); g.addColorStop(.5, 'rgba(255,255,255,.12)'); g.addColorStop(1, 'rgba(0,0,0,.22)'); c.fillStyle = g; c.fillRect(-w * .43, -h / 2, w * .86, h);
+    for (const sx of [-1, 1]){ c.fillStyle = 'rgba(10,6,4,.95)'; c.fillRect(sx * w * .47 - R * .06, -h / 2, R * .12, h); c.fillStyle = linFill(c, sx * w * .47 - R * .05, 0, sx * w * .47 + R * .05, 0, RAMP.lacquer, .9, .4); c.fillRect(sx * w * .47 - R * .05, -h / 2, R * .1, h);
+      for (let i = 0; i <= 4; i++){ const yy = -h / 2 + h * i / 4; disc(c, sx * w * .47, yy, R * .08, 'rgba(10,6,4,.95)'); disc(c, sx * w * .47, yy, R * .065, '#c9a23a'); } } } },
+  koi:     { cat: 'japan', name: 'Koi', w: 1, h: .7, z: 0, hg: .02, draw(c, R, rnd){
+    const n = 2 + (rnd() * 2 | 0); for (let i = 0; i < n; i++){ const x = (rnd() - .5) * R * .5, y = (rnd() - .5) * R * .35, a = rnd() * 6.28, cols = [['#f08a2e', '#fff3e6'], ['#e8e2d8', '#d0321e'], ['#f2c14a', '#fff6dc']][rnd() * 3 | 0];
+      c.save(); c.translate(x, y); c.rotate(a); c.fillStyle = cols[0]; c.beginPath(); c.ellipse(0, 0, R * .13, R * .045, 0, 0, 7); c.fill();
+      c.beginPath(); c.moveTo(-R * .11, 0); c.lineTo(-R * .2, -R * .05); c.lineTo(-R * .2, R * .05); c.closePath(); c.fill();
+      c.fillStyle = cols[1]; c.beginPath(); c.ellipse(R * .02, 0, R * .05, R * .03, 0, 0, 7); c.fill(); c.restore(); } } },
+  chabudai:{ cat: 'japan', name: 'Low table', w: 1.2, h: 1.2, z: 2, hg: .3, tint: 'wood', draw(c, R, rnd){
+    const r = R * .48; disc(c, 0, 0, r + 1.2, 'rgba(14,8,4,.92)'); disc(c, 0, 0, r, litFill(c, 0, 0, r, RAMP.wood, .3, .9));
+    c.strokeStyle = 'rgba(40,22,8,.3)'; c.lineWidth = Math.max(.5, R / 70); c.beginPath(); c.arc(0, 0, r * .85, 0, 7); c.stroke();
+    disc(c, -r * .3, -r * .1, R * .05, '#e9e2d2'); disc(c, r * .25, r * .2, R * .05, '#e9e2d2'); disc(c, r * .05, -r * .4, R * .08, '#3a2a1a'); } },
+  zabuton: { cat: 'japan', name: 'Cushion', w: .6, h: .6, z: 1, hg: .1, tint: 'cloth', draw(c, R, rnd){
+    const s = R * .44; c.fillStyle = 'rgba(14,8,4,.85)'; c.beginPath(); c.roundRect(-s / 2 - 1, -s / 2 - 1, s + 2, s + 2, R * .07); c.fill();
+    c.fillStyle = litFill(c, 0, 0, s * .7, RAMP.cloth, .3, .9); c.beginPath(); c.roundRect(-s / 2, -s / 2, s, s, R * .07); c.fill();
+    disc(c, 0, 0, R * .025, 'rgba(40,20,10,.6)'); } },
+  byobu:   { cat: 'japan', name: 'Folding screen', w: 2, h: .5, z: 2, hg: 1.2, draw(c, R, rnd){
+    const n = 6, pw = R * 1.8 / n, zz = R * .14; c.lineJoin = 'round';
+    c.strokeStyle = 'rgba(10,6,4,.95)'; c.lineWidth = R * .11; c.beginPath(); for (let i = 0; i <= n; i++) c.lineTo(-R * .9 + i * pw, i % 2 ? zz : -zz); c.stroke();
+    for (let i = 0; i < n; i++){ c.strokeStyle = i % 2 ? '#a5822e' : '#e0bd5a'; c.lineWidth = R * .075; c.beginPath(); c.moveTo(-R * .9 + i * pw, i % 2 ? zz : -zz); c.lineTo(-R * .9 + (i + 1) * pw, (i + 1) % 2 ? zz : -zz); c.stroke(); } } },
+  taiko:   { cat: 'japan', name: 'Taiko drum', w: 1, h: 1, z: 2, hg: .8, draw(c, R, rnd){
+    for (const [x, y] of [[-.3, -.3], [.3, -.3], [-.3, .3], [.3, .3]]){ c.fillStyle = '#2a1a0e'; c.fillRect(x * R - R * .04, y * R - R * .04, R * .08, R * .08); }
+    disc(c, 0, 0, R * .4, 'rgba(10,6,4,.95)'); disc(c, 0, 0, R * .38, litFill(c, 0, 0, R * .38, RAMP.lacquer, .2, .7));
+    disc(c, 0, 0, R * .32, litFill(c, 0, 0, R * .32, RAMP.canvas, .5, 1));
+    for (let i = 0; i < 20; i++){ const a = i / 20 * 6.28; disc(c, Math.cos(a) * R * .35, Math.sin(a) * R * .35, Math.max(.6, R * .012), '#1a1410'); }
+    c.strokeStyle = 'rgba(30,20,10,.5)'; c.lineWidth = Math.max(.8, R / 50); c.beginPath(); c.arc(0, 0, R * .1, 0, 7); c.stroke(); } },
+  komodaru:{ cat: 'japan', name: 'Sake barrels', w: 1.2, h: 1.2, z: 2, hg: .7, draw(c, R, rnd){
+    for (const [x, y] of [[-.22, .14], [.22, .14], [0, -.22]]){ const px = x * R, py = y * R, r = R * .24;
+      disc(c, px, py, r + 1.2, 'rgba(14,10,6,.92)'); disc(c, px, py, r, litFill(c, px, py, r, RAMP.canvas, .45, 1));
+      c.strokeStyle = 'rgba(70,50,30,.75)'; c.lineWidth = Math.max(.8, R / 45); c.beginPath(); c.moveTo(px - r, py); c.lineTo(px + r, py); c.moveTo(px, py - r); c.lineTo(px, py + r); c.stroke();
+      disc(c, px, py, r * .35, rnd() < .5 ? '#b3341b' : '#1c1c22'); disc(c, px, py, r * .2, '#efe7d3'); } } },
+  bonsai:  { cat: 'japan', name: 'Bonsai', w: .7, h: .7, z: 2, hg: .5, draw(c, R, rnd){
+    const w = R * .5, h = R * .3; c.fillStyle = 'rgba(10,8,6,.9)'; c.fillRect(-w / 2 - 1, -h / 2 - 1, w + 2, h + 2); c.fillStyle = linFill(c, -w / 2, 0, w / 2, 0, RAMP.metal, .6, .25); c.fillRect(-w / 2, -h / 2, w, h);
+    c.fillStyle = '#4a3a26'; c.fillRect(-w * .42, -h * .36, w * .84, h * .72);
+    cloudPad(c, -R * .1, -R * .05, R * .14, R * .1, rnd, R); cloudPad(c, R * .12, R * .04, R * .11, R * .08, rnd, R); } },
+  katana:  { cat: 'japan', name: 'Sword rack', w: .9, h: .5, z: 2, hg: .5, draw(c, R, rnd){
+    plankRect(c, 0, 0, R * .8, R * .14, 0, R, true, RAMP.wood, rnd);
+    for (const [y, k] of [[-R * .09, 1], [R * .09, .82]]){ c.strokeStyle = '#121216'; c.lineWidth = R * .045; c.lineCap = 'round'; c.beginPath(); c.moveTo(-R * .4 * k, y + R * .03); c.quadraticCurveTo(0, y - R * .03, R * .4 * k, y + R * .02); c.stroke();
+      c.fillStyle = '#c9a23a'; c.fillRect(-R * .18 * k, y - R * .035, R * .02, R * .07); } } },
+});
+STAMP_KEYS.push(...Object.keys(STAMPS).filter(k => !STAMP_KEYS.includes(k)));
+for (const [k, n] of [['jgarden', ['Japanese garden', ['maple', 'sakura', 'jpine', 'mossrock', 'mossrock']]], ['bamboog', ['Bamboo grove', ['bamboo']]], ['sakurag', ['Cherry orchard', ['sakura']]]]) SCATTER_SETS[k] = { name: n[0], keys: n[1] };
+
 
 const spriteCache = new Map();
-const LEAFY = { oak: 1, bush: 1, woods: 1 }, PINEY = { pine: 1, pinewood: 1 }, GRASSY = { tuftg: 1, reeds: 1, hills: 1, flowers: 1, swamp: 1 };
+const LEAFY = { oak: 1, bush: 1, woods: 1, sakura: 1, maple: 1 }, JP_TREES = { sakura: 1, maple: 1 }, PINEY = { pine: 1, pinewood: 1, jpine: 1, bamboo: 1 }, GRASSY = { tuftg: 1, reeds: 1, hills: 1, flowers: 1, swamp: 1 };
 const AUTUMN = ['#c0641e', '#d8902a', '#b13a1e', '#a8882a', '#cf9e2e'];
 function seasonFor(t, v, tint){
   const st = STAMPS[t], r = mulberry((v * 7 + 3) | 0)(), out = {};
-  if (SEASON === 'spring'){ if (LEAFY[t]){ if (!tint) out.tint = '#5d9c3c'; if (r < .4 && t !== 'woods') out.mode = 'blossom'; } }
+  if (SEASON === 'spring'){ if (LEAFY[t] && !JP_TREES[t]){ if (!tint) out.tint = '#5d9c3c'; if (r < .4 && t !== 'woods') out.mode = 'blossom'; } }
   else if (SEASON === 'autumn'){ if (LEAFY[t] && !tint && r > .15) out.tint = AUTUMN[(v >>> 0) % AUTUMN.length]; if (GRASSY[t] && !tint) out.tint = '#9a8a4a'; }
   else if (SEASON === 'winter'){
     if (LEAFY[t]){ if (t === 'woods'){ out.tint = '#6b5d50'; out.mode = 'snow'; } else out.mode = 'bare'; }
     else if (GRASSY[t]){ out.tint = '#bdb6a6'; out.mode = 'snow'; }
-    else if (PINEY[t] || ['nature', 'ruins', 'camp', 'world'].includes(st.cat)) out.mode = 'snow'; }
+    else if (PINEY[t] || st.out || ['nature', 'ruins', 'camp', 'world'].includes(st.cat)) out.mode = 'snow'; }
   return out;
 }
 function getSprite(t, v, R, tint){
@@ -1153,7 +1290,7 @@ function getSprite(t, v, R, tint){
   y.filter = `brightness(0) blur(${Math.max(.5, R * .05).toFixed(1)}px)`; y.drawImage(c, 0, 0);
   s = { c, sh, size }; spriteCache.set(key, s); return s;
 }
-const CANOPY = { oak: 1, pine: 1 };
+const CANOPY = { oak: 1, pine: 1, sakura: 1, maple: 1, jpine: 1, bamboo: 1 };
 function drawObjects(ctx, m, P){
   const objs = m.struct.objects; if (!objs || !objs.length) return;
   const order = objs.map((o, i) => i).sort((a, b) => (STAMPS[objs[a].t].z - STAMPS[objs[b].t].z) || a - b);
@@ -1179,14 +1316,30 @@ const ROOFMATS = {
   slate:    ['#1c2026','#2a3038','#3a424c','#4d5661','#636d79','#7d8793'],
   thatch:   ['#4a3a1c','#6a5426','#8c7032','#a98a42','#c2a458','#d6bc74'],
   shingles: ['#2a1c12','#3e2a1b','#553a25','#6c4b31','#83603f','#9a7650'],
+  kawara:   ['#1b1f24','#282e35','#373f48','#4a535e','#606a76','#7b8592'],
+  hiwada:   ['#2e1a10','#45281a','#5d3826','#764a33','#8f5e42','#a87656'],
+  copper:   ['#1f4a42','#2b6157','#3a786c','#4d8f81','#66a596','#86bcae'],
 };
+const JP_ROOF = { kawara: 1, hiwada: 1, copper: 1 };
+// outline with the eaves sweeping up at the corners (sides bow in, corners reach out)
+function flaredPath(ctx, x, y, w, h, P){ const f = P * .22, b = P * .14;
+  ctx.beginPath(); ctx.moveTo(x - f, y - f);
+  ctx.quadraticCurveTo(x + w / 2, y + b, x + w + f, y - f); ctx.quadraticCurveTo(x + w - b, y + h / 2, x + w + f, y + h + f);
+  ctx.quadraticCurveTo(x + w / 2, y + h - b, x - f, y + h + f); ctx.quadraticCurveTo(x + b, y + h / 2, x - f, y - f); ctx.closePath(); }
 function drawRoof(ctx, r, P){
   const ramp = (r.c ? rampFromHex(r.c) : ROOFMATS[r.mat] || ROOFMATS.tiles).map(hexRgb), col = (t, a = 1) => rgba(ramp, t, a);
   const ov = P * .12, x = r.x0 * P - ov, y = r.y0 * P - ov, w = (r.x1 - r.x0) * P + 2 * ov, h = (r.y1 - r.y0) * P + 2 * ov, horiz = w >= h;
   ctx.save();
-  ctx.filter = `blur(${(P * .05).toFixed(1)}px)`; ctx.fillStyle = `rgba(0,0,0,${SUN.a * .7})`; ctx.fillRect(x + SUN.dx * P * 1.6, y + SUN.dy * P * 1.6, w, h); ctx.filter = 'none';
+  const jp = JP_ROOF[r.mat];
+  ctx.filter = `blur(${(P * .05).toFixed(1)}px)`; ctx.fillStyle = `rgba(0,0,0,${SUN.a * .7})`;
+  if (jp){ ctx.save(); ctx.translate(SUN.dx * P * 1.6, SUN.dy * P * 1.6); flaredPath(ctx, x, y, w, h, P); ctx.fill(); ctx.restore(); } else ctx.fillRect(x + SUN.dx * P * 1.6, y + SUN.dy * P * 1.6, w, h);
+  ctx.filter = 'none';
+  if (jp){ ctx.save(); flaredPath(ctx, x, y, w, h, P); ctx.clip(); }
   const hh = Math.min(w, h) / 2, A = horiz ? [x + hh, y + h / 2] : [x + w / 2, y + hh], B = horiz ? [x + w - hh, y + h / 2] : [x + w / 2, y + h - hh];
-  const faces = horiz
+  const F = jp ? P * .22 : 0, X0 = x - F, Y0 = y - F, X1 = x + w + F, Y1 = y + h + F;
+  const faces = jp ? (horiz
+    ? [[[[X0, Y0], [X1, Y0], B, A], .82, 'h'], [[[X0, Y1], [X1, Y1], B, A], .3, 'h'], [[[X0, Y0], A, [X0, Y1]], .62, 'v'], [[[X1, Y0], B, [X1, Y1]], .22, 'v']]
+    : [[[[X0, Y0], [X0, Y1], B, A], .82, 'v'], [[[X1, Y0], [X1, Y1], B, A], .3, 'v'], [[[X0, Y0], A, [X1, Y0]], .62, 'h'], [[[X0, Y1], B, [X1, Y1]], .22, 'h']]) : horiz
     ? [[[[x, y], [x + w, y], B, A], .82, 'h'], [[[x, y + h], [x + w, y + h], B, A], .3, 'h'], [[[x, y], A, [x, y + h]], .62, 'v'], [[[x + w, y], B, [x + w, y + h]], .22, 'v']]
     : [[[[x, y], [x, y + h], B, A], .82, 'v'], [[[x + w, y], [x + w, y + h], B, A], .3, 'v'], [[[x, y], A, [x + w, y]], .62, 'h'], [[[x, y + h], B, [x + w, y + h]], .22, 'h']];
   const rnd = mulberry((r.x0 * 73 + r.y0 * 151) | 0), path = pts => { ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); };
@@ -1195,7 +1348,15 @@ function drawRoof(ctx, r, P){
     { const ex = pts[0], fx = pts[1], mx = (ex[0] + fx[0]) / 2, my = (ex[1] + fx[1]) / 2, rx = (A[0] + B[0]) / 2, ry = (A[1] + B[1]) / 2, gr = ctx.createLinearGradient(rx, ry, mx, my);
       gr.addColorStop(0, col(Math.min(1, t + .1))); gr.addColorStop(1, col(Math.max(0, t - .1))); ctx.fillStyle = gr; ctx.fillRect(x, y, w, h); }
     const step = P * (r.mat === 'thatch' ? .08 : .17);
-    if (r.mat === 'thatch'){ ctx.lineCap = 'round'; for (let i = 0; i < w * h / (P * P) * 70; i++){ const px = x + rnd() * w, py = y + rnd() * h, l = P * (.08 + rnd() * .08);
+    if (r.mat === 'kawara' || r.mat === 'copper'){ // rows of round tiles / standing seams running from ridge to eave
+      const sp = P * (r.mat === 'kawara' ? .13 : .3), lw = Math.max(.8, P / (r.mat === 'kawara' ? 40 : 60));
+      for (let q = (dir === 'h' ? X0 : Y0); q < (dir === 'h' ? X1 : Y1); q += sp){
+        ctx.strokeStyle = 'rgba(0,0,0,.26)'; ctx.lineWidth = lw; ctx.beginPath(); dir === 'h' ? (ctx.moveTo(q, Y0), ctx.lineTo(q, Y1)) : (ctx.moveTo(X0, q), ctx.lineTo(X1, q)); ctx.stroke();
+        ctx.strokeStyle = col(Math.min(1, t + .25), r.mat === 'kawara' ? .55 : .4); ctx.lineWidth = lw * (r.mat === 'kawara' ? 1.6 : .8); ctx.beginPath();
+        const o = sp * .45; dir === 'h' ? (ctx.moveTo(q + o, Y0), ctx.lineTo(q + o, Y1)) : (ctx.moveTo(X0, q + o), ctx.lineTo(X1, q + o)); ctx.stroke(); } }
+    else if (r.mat === 'hiwada'){ ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = Math.max(.6, P / 80); ctx.beginPath();
+      for (let q = (dir === 'h' ? Y0 : X0); q < (dir === 'h' ? Y1 : X1); q += P * .05) dir === 'h' ? (ctx.moveTo(X0, q), ctx.lineTo(X1, q)) : (ctx.moveTo(q, Y0), ctx.lineTo(q, Y1)); ctx.stroke(); }
+    else if (r.mat === 'thatch'){ ctx.lineCap = 'round'; for (let i = 0; i < w * h / (P * P) * 70; i++){ const px = x + rnd() * w, py = y + rnd() * h, l = P * (.08 + rnd() * .08);
         ctx.strokeStyle = col(clamp(t + (rnd() - .5) * .35, 0, 1), .7); ctx.lineWidth = Math.max(.6, P / 55); ctx.beginPath(); ctx.moveTo(px, py); dir === 'h' ? ctx.lineTo(px + (rnd() - .5) * P * .03, py + l) : ctx.lineTo(px + l, py + (rnd() - .5) * P * .03); ctx.stroke(); } }
     else { ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = Math.max(.8, P / 55); ctx.beginPath(); let k = 0;
       if (dir === 'h') for (let yy = y + step; yy < y + h; yy += step, k++){ ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); for (let xx = x + (k % 2 ? step * .6 : 0); xx < x + w; xx += step * 1.2){ ctx.moveTo(xx, yy - step); ctx.lineTo(xx, yy); } }
@@ -1204,9 +1365,14 @@ function drawRoof(ctx, r, P){
     if (SEASON === 'winter'){ ctx.fillStyle = `rgba(236,242,248,${.55 + t * .3})`; ctx.fillRect(x, y, w, h); }
     ctx.restore();
   }
-  ctx.strokeStyle = col(.05, .9); ctx.lineWidth = Math.max(1.5, P / 18); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]);
-  for (const [cx, cy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]){ const e = (horiz ? cx < A[0] + 1 : cy < A[1] + 1) ? A : B; ctx.moveTo(cx, cy); ctx.lineTo(e[0], e[1]); }
+  ctx.strokeStyle = col(.05, .9); ctx.lineWidth = Math.max(1.5, P / (jp ? 12 : 18)); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]);
+  for (const [cx, cy] of jp ? [[X0, Y0], [X1, Y0], [X0, Y1], [X1, Y1]] : [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]){ const e = (horiz ? cx < A[0] + 1 : cy < A[1] + 1) ? A : B; ctx.moveTo(cx, cy); ctx.lineTo(e[0], e[1]); }
   ctx.stroke(); ctx.strokeStyle = SEASON === 'winter' ? 'rgba(255,255,255,.7)' : col(.95, .5); ctx.lineWidth = Math.max(.8, P / 45); ctx.beginPath(); ctx.moveTo(A[0] - 1, A[1] - 1); ctx.lineTo(B[0] - 1, B[1] - 1); ctx.stroke();
+  if (jp){ // ridge-end ornaments (onigawara), then the flared eave line
+    for (const E of [A, B]){ ctx.fillStyle = col(.08); ctx.beginPath(); ctx.arc(E[0], E[1], P * .09, 0, 7); ctx.fill(); ctx.fillStyle = col(.7, .6); ctx.beginPath(); ctx.arc(E[0] - P * .02, E[1] - P * .02, P * .035, 0, 7); ctx.fill(); }
+    ctx.restore(); ctx.strokeStyle = 'rgba(10,6,4,.9)'; ctx.lineWidth = Math.max(1.5, P / 26); flaredPath(ctx, x, y, w, h, P); ctx.stroke();
+    ctx.strokeStyle = col(.9, .35); ctx.lineWidth = Math.max(.8, P / 50); ctx.save(); ctx.translate(-1, -1); flaredPath(ctx, x + P * .04, y + P * .04, w - P * .08, h - P * .08, P); ctx.stroke(); ctx.restore();
+    ctx.restore(); return; }
   ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = Math.max(1, P / 25); ctx.strokeRect(x + P * .03, y + P * .03, w - P * .06, h - P * .06);
   ctx.strokeStyle = 'rgba(10,6,4,.9)'; ctx.lineWidth = Math.max(1.5, P / 30); ctx.strokeRect(x, y, w, h);
   ctx.restore();
@@ -1226,7 +1392,7 @@ function drawLabels(ctx, labels, P){
 
 /* ---------- night: a multiply layer (moonlit tint with holes for lights) + a screen layer (warm glow) ---------- */
 // Light occlusion: wall segments (minus openings that let light through) block light; visibility polygon per light.
-const LIGHT_PASSES = { opening: 1, portcullis: 1, window: 1 };
+const LIGHT_PASSES = { opening: 1, portcullis: 1, window: 1, shoji: 1 };
 function lightBlockers(m){
   const gaps = m.struct.doors.filter(d => LIGHT_PASSES[d.type]).map(d => { const [cx, cy] = doorCenter(d); return d.o === 'h' ? { h: 1, c: cy, a: cx - .45, b: cx + .45 } : { h: 0, c: cx, a: cy - .45, b: cy + .45 }; });
   const out = [];
@@ -1888,7 +2054,7 @@ $('pickHex').onchange = () => { let v = $('pickHex').value.trim(); if (!v.starts
 $('bRecolour').onclick = () => { if (!activeHex) return; const T = TERRAINS[curTerrain], gen = T.gen || T.key;
   let j = map.custom.findIndex(c => c && c.gen === gen && c.hex === activeHex);
   if (j < 0){ j = map.custom.length; map.custom.push({ gen, hex: activeHex }); applyCustoms(); buildCustomPanel(); touchSave(); }
-  selectTerrain(BUILTIN + j); if (!['brush', 'cell', 'rect', 'fill', 'room'].includes(tool)) setTool('brush'); };
+  selectTerrain(CUSTOM_BASE + j); if (!['brush', 'cell', 'rect', 'fill', 'room'].includes(tool)) setTool('brush'); };
 function terrainSwatch(i, keyTxt){ const t = TERRAINS[i], d = document.createElement('div'); d.className = 'tsw'; d.dataset.i = i; d.title = t.name;
   const c = document.createElement('canvas'); c.width = 104; c.height = 46; const cx = c.getContext('2d'); cx.fillStyle = cx.createPattern(genTex(t, 20, 12345, t.baseIdx ?? i), 'repeat'); cx.fillRect(0, 0, 104, 46);
   d.appendChild(c); const s = document.createElement('span'); s.innerHTML = `<b style="font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.name}</b><i>${keyTxt}</i>`; d.appendChild(s);
@@ -1898,7 +2064,7 @@ function buildCustomPanel(){ const box = $('customs'); box.innerHTML = ''; let n
     const x = document.createElement('button'); x.className = 'del'; x.textContent = '×'; x.title = 'Remove this colour (painted areas go back to the default colour)';
     x.onclick = ev => { ev.stopPropagation(); if (!confirm(`Remove ${t.name}? Areas painted with it return to ${TERRAINS[t.baseIdx].name}.`)) return;
       for (const L of map.layers){ const lab = L.labels; for (let k = 0; k < lab.length; k++) if (lab[k] === i) lab[k] = t.baseIdx; }
-      if (map.base === i) map.base = t.baseIdx; map.custom[i - BUILTIN] = null; applyCustoms(); buildCustomPanel(); if (curTerrain === i) selectTerrain(t.baseIdx);
+      if (map.base === i) map.base = t.baseIdx; map.custom[i - CUSTOM_BASE] = null; applyCustoms(); buildCustomPanel(); if (curTerrain === i) selectTerrain(t.baseIdx);
       undoStack = []; redoStack = []; updUndo(); renderAllLayers(); touchSave(); };
     d.appendChild(x); box.appendChild(d); });
   $('customsHead').style.display = n ? '' : 'none'; selectTerrain(curTerrain);
@@ -2020,7 +2186,7 @@ function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return nu
 function thumbnail(){ const w = 220, h = Math.max(1, Math.round(w * map.rows / map.cols)); const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
   for (const l of map.layers) if (l.visible){ const lc = layerCanvases(l); x.globalAlpha = l.opacity; x.drawImage(lc.t, 0, 0, w, h); x.drawImage(lc.s, 0, 0, w, h); } x.globalAlpha = 1; return c.toDataURL('image/jpeg', .75); }
 const extraLayers = m => (m.layers || []).slice(1).map(l => ({ id: l.id, name: l.name, visible: l.visible, opacity: l.opacity, dm: l.dm, labels: l.labels, struct: l.struct }));
-function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
+function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
 let saveTimer = 0;
 function touchSave(){ dirtySave = true; $('stSave').textContent = 'Unsaved changes…'; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500); }
 async function saveNow(){
@@ -2029,7 +2195,13 @@ async function saveNow(){
   catch (err){ $('stSave').textContent = 'Save failed: ' + err.message; }
 }
 function fromRecord(r){ const m = fromRecord0(r), n = m.cols * R * m.rows * R;
-  return ensureLayers(m, (r.layers || []).filter(l => l && l.labels && l.labels.length === n).map(l => ({ id: String(l.id || uid()), name: String(l.name || 'Layer').slice(0, 40), visible: l.visible !== false, opacity: clamp(+l.opacity || 1, .05, 1), dm: !!l.dm, labels: new Uint8Array(l.labels), struct: cleanStruct(l.struct) })), r.activeLayer); }
+  return migrateCustom(ensureLayers(m, (r.layers || []).filter(l => l && l.labels && l.labels.length === n).map(l => ({ id: String(l.id || uid()), name: String(l.name || 'Layer').slice(0, 40), visible: l.visible !== false, opacity: clamp(+l.opacity || 1, .05, 1), dm: !!l.dm, labels: new Uint8Array(l.labels), struct: cleanStruct(l.struct) })), r.activeLayer), r.cb ?? OLD_CUSTOM_BASE); }
+function migrateCustom(m, oldBase){
+  const n = (m.custom || []).length; if (oldBase === CUSTOM_BASE || !n) return m;
+  for (const l of m.layers){ const lab = l.labels; for (let i = 0; i < lab.length; i++){ const v = lab[i]; if (v >= oldBase && v < oldBase + n) lab[i] = CUSTOM_BASE + v - oldBase; } }
+  if (m.base >= oldBase && m.base < oldBase + n) m.base = CUSTOM_BASE + m.base - oldBase;
+  return m;
+}
 function fromRecord0(r){ return gridInit({ showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), created: r.created, thumb: r.thumb }); }
 
 function openMap(m){
@@ -2103,7 +2275,7 @@ $('libBackup').onclick = async () => { const list = await dbAll(); const out = {
 function cleanCustom(a){ return (Array.isArray(a) ? a : []).map(c => c && /^#[0-9a-f]{6}$/i.test(c.hex) && TERRAINS.some((t, i) => i < BUILTIN && t.key === c.gen) ? { gen: c.gen, hex: c.hex.toLowerCase() } : null); }
 function cleanStruct(o){ const s = emptyStruct(); if (!o) return s; const num = v => +v || 0;
   for (const w of o.walls || []) s.walls.push({ x1: num(w.x1), y1: num(w.y1), x2: num(w.x2), y2: num(w.y2), mat: WALLMATS[w.mat] ? w.mat : 'stone', th: clamp(num(w.th) || .25, .05, 1) });
-  for (const d of o.doors || []) s.doors.push({ x: num(d.x) | 0, y: num(d.y) | 0, o: d.o === 'v' ? 'v' : 'h', type: ['door','double','secret','portcullis','window','opening'].includes(d.type) ? d.type : 'door' });
+  for (const d of o.doors || []) s.doors.push({ x: num(d.x) | 0, y: num(d.y) | 0, o: d.o === 'v' ? 'v' : 'h', type: ['door','double','secret','portcullis','window','opening','shoji'].includes(d.type) ? d.type : 'door' });
   for (const b of o.objects || []) if (STAMPS[b.t]) s.objects.push({ t: b.t, x: num(b.x), y: num(b.y), r: num(b.r), s: clamp(num(b.s) || 1, .2, 5), v: num(b.v) | 0, f: b.f ? 1 : 0, ...(/^#[0-9a-f]{6}$/i.test(b.c || '') ? { c: b.c } : {}) });
   for (const l of o.labels || []) if (l && String(l.text || '').trim()) s.labels.push({ x: num(l.x), y: num(l.y), text: String(l.text).slice(0, 80), size: clamp(num(l.size) || .5, .15, 3) });
   for (const r of o.roofs || []) s.roofs.push({ x0: num(r.x0), y0: num(r.y0), x1: num(r.x1), y1: num(r.y1), mat: ROOFMATS[r.mat] ? r.mat : 'tiles', ...(/^#[0-9a-f]{6}$/i.test(r.c || '') ? { c: r.c } : {}) });
@@ -2116,7 +2288,7 @@ function parseProject(o){
   const cols = o.cols | 0, rows = o.rows | 0; if (cols < 1 || rows < 1 || cols > 400 || rows > 400) throw new Error('Bad map size');
   const src = b64ToU8(o.labels), rr = o.R | 0; if (src.length !== cols * rr * rows * rr) throw new Error('Terrain data is the wrong size');
   const custom = cleanCustom(o.custom);
-  const remap = (o.terrains || []).map(k => /^c:\d+$/.test(k) ? (custom[+k.slice(2)] ? BUILTIN + +k.slice(2) : 0) : Math.max(0, TERRAINS.findIndex((t, i) => i < BUILTIN && t.key === k)));
+  const remap = (o.terrains || []).map(k => /^c:\d+$/.test(k) ? (custom[+k.slice(2)] ? CUSTOM_BASE + +k.slice(2) : 0) : Math.max(0, TERRAINS.findIndex((t, i) => i < BUILTIN && t.key === k)));
   const decode = (sv, empty) => { const out = new Uint8Array(cols * R * rows * R), W = cols * R, SW = cols * rr;
     for (let y = 0; y < rows * R; y++) for (let x = 0; x < W; x++){ const v = sv[Math.floor(y * rr / R) * SW + Math.floor(x * rr / R)]; out[y * W + x] = v === 255 && empty ? 255 : remap.length ? (remap[v] ?? 0) : v; } return out; };
   const labels = decode(src, false);
