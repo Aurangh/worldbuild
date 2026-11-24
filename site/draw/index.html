@@ -202,6 +202,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <input type="range" id="objSize" min="0.4" max="2.5" step="0.05" value="1">
     <div class="row"><label for="objRandRot">Random rotation</label><input type="checkbox" id="objRandRot" checked></div>
     <div class="row"><label for="objSnap">Snap (half squares / hex centres)</label><input type="checkbox" id="objSnap"></div>
+    <div class="row" id="lightRow" style="display:none"><label for="lightPreset" id="lightRowLbl">Light</label><select id="lightPreset"></select><input type="checkbox" id="lightOn" checked title="Lit"></div>
     <div class="row"><label for="scatterSet">Scatter</label><select id="scatterSet"></select></div>
     <div class="row"><label for="density">Scatter density</label><output id="densityOut"></output></div>
     <input type="range" id="density" min="0.1" max="1.5" step="0.05" value="0.7">
@@ -229,6 +230,8 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <div class="row"><label for="lightRad">Light radius</label><output id="lightOut"></output></div>
     <input type="range" id="lightRad" min="0.5" max="2.5" step="0.1" value="1">
     <div class="row"><label for="occlude">Walls block light</label><input type="checkbox" id="occlude" checked></div>
+    <div class="row"><label for="lightRules">Light ranges</label><select id="lightRules"><option value="35">D&amp;D 3.5</option><option value="5e">D&amp;D 5e</option></select></div>
+    <div class="row"><label for="showRanges">Show light ranges</label><input type="checkbox" id="showRanges"></div>
     <div class="row"><label for="soft">Edge blending</label><output id="softOut"></output></div>
     <input type="range" id="soft" min="0" max="1.5" step="0.05" value="0.6">
     <div class="row"><label>Textures</label><button id="bReroll" title="New random variation of all textures">Re-roll</button></div>
@@ -244,6 +247,9 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
       <option value="flat">Every square = 1 (5e style)</option>
       <option value="euclid">Straight-line distance</option>
     </select></div>
+
+    <h3>Packs</h3>
+    <div id="packs"></div>
 
     <h3>Map</h3>
     <div class="info" id="mapInfo"></div>
@@ -1131,7 +1137,8 @@ Object.assign(STAMPS, {
     c.fillStyle = '#e8e0cc'; c.beginPath(); c.moveTo(R * .33, R * .08); c.lineTo(R * .44, R * .27); c.lineTo(R * .33, R * .27); c.closePath(); c.fill(); } },
 });
 
-Object.assign(STAMPS.brazier, { light: 4 }); Object.assign(STAMPS.fire, { light: 5 }); Object.assign(STAMPS.altar, { light: 2 }); Object.assign(STAMPS.volcano, { light: 1.5 });
+Object.assign(STAMPS.brazier, { light: 4, lp: 'campfire' }); Object.assign(STAMPS.fire, { light: 5, lp: 'campfire' }); Object.assign(STAMPS.altar, { light: 2, lp: 'candle' }); Object.assign(STAMPS.volcano, { light: 1.5 });
+Object.assign(STAMPS.torch, { lp: 'torch' }); Object.assign(STAMPS.lantern, { lp: 'hooded' });
 const STAMP_KEYS = Object.keys(STAMPS);
 const SCATTER_SETS = {
   current: { name: 'Selected object', keys: null },
@@ -1253,6 +1260,11 @@ Object.assign(STAMPS, {
       c.fillStyle = '#c9a23a'; c.fillRect(-R * .18 * k, y - R * .035, R * .02, R * .07); } } },
 });
 STAMP_KEYS.push(...Object.keys(STAMPS).filter(k => !STAMP_KEYS.includes(k)));
+Object.assign(STAMPS.torou, { lp: 'lamp' }); Object.assign(STAMPS.chochin, { lp: 'lamp' });
+STAMPS.bullseye = { cat: 'dungeon', name: 'Bullseye lantern', w: .5, h: .5, z: 3, hg: .3, light: 3, lp: 'bullseye', draw(c, R, rnd){
+  c.fillStyle = 'rgba(10,10,12,.95)'; c.beginPath(); c.moveTo(-R * .14, -R * .1); c.lineTo(R * .1, -R * .1); c.lineTo(R * .2, -R * .14); c.lineTo(R * .2, R * .14); c.lineTo(R * .1, R * .1); c.lineTo(-R * .14, R * .1); c.closePath(); c.fill();
+  c.fillStyle = linFill(c, 0, -R * .1, 0, R * .1, RAMP.metal, .85, .3); c.fillRect(-R * .12, -R * .08, R * .22, R * .16); c.fillStyle = '#ffe08a'; c.beginPath(); c.ellipse(R * .19, 0, R * .03, R * .11, 0, 0, 7); c.fill(); } };
+STAMP_KEYS.push('bullseye');
 for (const [k, n] of [['jgarden', ['Japanese garden', ['maple', 'sakura', 'jpine', 'mossrock', 'mossrock']]], ['bamboog', ['Bamboo grove', ['bamboo']]], ['sakurag', ['Cherry orchard', ['sakura']]]]) SCATTER_SETS[k] = { name: n[0], keys: n[1] };
 
 
@@ -1428,6 +1440,26 @@ const TOD = {
 const TOD_ORDER = ['day', 'dawn', 'golden', 'dusk', 'night'];
 function setSun(tod){ const t = TOD[tod] || TOD.day; SUN.dx = t.sun[0]; SUN.dy = t.sun[1]; SUN.a = t.sa; }
 function nightColour(k){ const deep = [14, 24, 72]; return deep.map(v => Math.round(255 + (v - 255) * k)); }
+// Light sources: [bright, outer edge of dim/shadowy light] in feet, D&D 3.5 and 5e (5e dim = bright + the extra dim distance)
+const LIGHT_PRESETS = {
+  candle:   { name: 'Candle',                   '35': [0, 5],     '5e': [5, 10] },
+  lamp:     { name: 'Common lamp',              '35': [15, 30],   '5e': [15, 45] },
+  torch:    { name: 'Torch / light spell',      '35': [20, 40],   '5e': [20, 40] },
+  campfire: { name: 'Campfire / brazier',       '35': [20, 40],   '5e': [20, 40] },
+  hooded:   { name: 'Hooded lantern',           '35': [30, 60],   '5e': [30, 60] },
+  sunrod:   { name: 'Sunrod',                   '35': [30, 60],   '5e': [30, 60] },
+  bullseye: { name: 'Bullseye lantern (cone)',  '35': [60, 120],  '5e': [60, 120], cone: 60 },
+  daylight: { name: 'Daylight spell',           '35': [60, 120],  '5e': [60, 120] },
+  glow:     { name: 'Faint glow',               '35': [5, 10],    '5e': [5, 10] },
+  beacon:   { name: 'Lighthouse beam (cone)',   '35': [120, 240], '5e': [120, 240], cone: 30 },
+};
+// One light, in squares: { b: bright radius, o: outer radius, cone: degrees or 0, dir: radians }
+function lightOf(o, m){
+  const st = STAMPS[o.t]; if (!st || (!st.light && !st.lp) || o.off) return null;
+  const pr = LIGHT_PRESETS[o.lp || st.lp];
+  if (!pr || !/^f(ee)?t$/i.test(m.unit || 'ft')){ const r = (st.light || 3) * Math.sqrt(o.s || 1); return { b: r * .35, o: r, cone: 0, dir: 0 }; }   // world maps: keep icon-sized glows
+  const [b, ou] = pr[m.rules === '5e' ? '5e' : '35'], ft = m.ft || 5; return { b: b / ft, o: ou / ft, cone: pr.cone || 0, dir: o.r || 0 };
+}
 function buildNight(m, P, W, H, k, lr, dm = true, tod = 'night'){
   const TP = TOD[tod] || TOD.night, LA = TP.light ?? 1;
   const Ls = shownLayers(m, dm), all = key => Ls.flatMap(l => l.struct[key] || []);
@@ -1435,16 +1467,17 @@ function buildNight(m, P, W, H, k, lr, dm = true, tod = 'night'){
   const dark = document.createElement('canvas'), glow = document.createElement('canvas'); dark.width = glow.width = W; dark.height = glow.height = H;
   const d = dark.getContext('2d'), g = glow.getContext('2d'); d.fillStyle = `rgb(${TP.tint || nightColour(k)})`; d.fillRect(0, 0, W, H); if (TP.wash){ g.fillStyle = TP.wash; g.fillRect(0, 0, W, H); }
   const lights = [];
-  for (const o of merged.struct.objects) { const st = STAMPS[o.t]; if (st && st.light) lights.push([o.x, o.y, st.light * Math.sqrt(o.s) * lr, 1, o.c]); }
-  for (const dr of merged.struct.doors) if (dr.type === 'window'){ const [cx, cy] = doorCenter(dr); lights.push([cx, cy, 1.6 * lr, .7]); }
+  for (const o of merged.struct.objects){ const L = lightOf(o, m); if (L) lights.push([o.x, o.y, L.o * lr, 1, o.c, L.b * lr, L.cone, L.dir]); }
+  for (const dr of merged.struct.doors) if (dr.type === 'window' || dr.type === 'shoji'){ const [cx, cy] = doorCenter(dr); lights.push([cx, cy, 1.6 * lr, .7]); }
   const segs = m.occlude === false ? [] : lightBlockers(merged);
-  for (const [x, y, r, a0 = 1, lc] of lights){
+  for (const [x, y, r, a0 = 1, lc, rb = r * .35, cone = 0, dir = 0] of lights){
     const a = a0 * LA, cc = lc ? hexRgb(lc) : [255, 150, 50], hole = cc.map(v => Math.round(255 - (255 - v) * .35)), hole2 = cc.map(v => Math.round(255 - (255 - v) * .45));
     const poly = segs.length ? visPoly(x, y, r, segs) : null;
     const clip = c2 => { if (!poly) return; c2.beginPath(); poly.forEach(([px, py], i) => i ? c2.lineTo(px * P, py * P) : c2.moveTo(px * P, py * P)); c2.closePath(); c2.clip(); };
-    d.save(); g.save(); clip(d); clip(g);
-    const gr = d.createRadialGradient(x * P, y * P, 0, x * P, y * P, r * P);
-    gr.addColorStop(0, `rgba(${hole},${a})`); gr.addColorStop(.35, `rgba(${hole2},${a * .85})`); gr.addColorStop(1, `rgba(${hole2},0)`);
+    const wedge = c2 => { if (!cone) return; const h = cone * Math.PI / 360; c2.beginPath(); c2.moveTo(x * P, y * P); c2.arc(x * P, y * P, r * P * 1.02, dir - h, dir + h); c2.closePath(); c2.clip(); };
+    d.save(); g.save(); clip(d); clip(g); wedge(d); wedge(g);
+    const gr = d.createRadialGradient(x * P, y * P, 0, x * P, y * P, r * P), kb = clamp(rb / r, .05, .9);   // full light to the bright radius, fading through the dim ring
+    gr.addColorStop(0, `rgba(${hole},${a})`); gr.addColorStop(kb, `rgba(${hole2},${a * .9})`); gr.addColorStop(Math.min(.97, kb + (1 - kb) * .55), `rgba(${hole2},${a * .45})`); gr.addColorStop(1, `rgba(${hole2},0)`);
     d.fillStyle = gr; d.fillRect((x - r) * P, (y - r) * P, 2 * r * P, 2 * r * P);
     const gg = g.createRadialGradient(x * P, y * P, 0, x * P, y * P, r * .7 * P);
     gg.addColorStop(0, `rgba(${cc},${.42 * a})`); gg.addColorStop(.5, `rgba(${cc},${.16 * a})`); gg.addColorStop(1, `rgba(${cc},0)`);
@@ -1452,11 +1485,12 @@ function buildNight(m, P, W, H, k, lr, dm = true, tod = 'night'){
     d.restore(); g.restore();
   }
   // emissive terrain (lava, including recoloured lava)
-  const emit = TERRAINS.map(t => (t.gen || t.key) === 'lava'); let any = false;
-  for (const l of Ls){ const lab = l.labels; for (let i = 0; i < lab.length; i++) if (emit[lab[i]]){ any = true; break; } if (any) break; }
-  if (any){ const sw = m.cols * R, sh = m.rows * R, mc = document.createElement('canvas'); mc.width = sw; mc.height = sh;
+  // glowing terrain: lava, crystal floors, glowing fungus... each terrain carries its own glow colour
+  const emit = TERRAINS.map(t => t && (t.glow || ((t.gen || t.key) === 'lava' ? '#ffc896' : null)) || null);
+  const present = new Set(); for (const l of Ls){ const lab = l.labels; for (let i = 0; i < lab.length; i++) if (emit[lab[i]]) present.add(emit[lab[i]]); }
+  for (const gc of present){ const [cr, cg, cb] = hexRgb(gc), sw = m.cols * R, sh = m.rows * R, mc = document.createElement('canvas'); mc.width = sw; mc.height = sh;
     const mx = mc.getContext('2d'), id = mx.createImageData(sw, sh), dd = id.data;
-    for (const l of Ls){ const lab = l.labels; for (let i = 0; i < lab.length; i++) if (emit[lab[i]]){ dd[i * 4] = 255; dd[i * 4 + 1] = 200; dd[i * 4 + 2] = 150; dd[i * 4 + 3] = 255; } }
+    for (const l of Ls){ const lab = l.labels; for (let i = 0; i < lab.length; i++) if (emit[lab[i]] === gc){ dd[i * 4] = cr; dd[i * 4 + 1] = cg; dd[i * 4 + 2] = cb; dd[i * 4 + 3] = 255; } }
     mx.putImageData(id, 0, 0);
     d.save(); d.globalAlpha = Math.max(.4, LA); d.filter = `blur(${(P * .9 * lr).toFixed(1)}px)`; d.drawImage(mc, 0, 0, m.cols * P, m.rows * P); d.filter = 'none'; d.drawImage(mc, 0, 0, m.cols * P, m.rows * P); d.restore();
     g.save(); g.globalAlpha = .5; g.filter = `blur(${(P * .6 * lr).toFixed(1)}px)`; g.drawImage(mc, 0, 0, m.cols * P, m.rows * P); g.restore(); }
@@ -1656,6 +1690,12 @@ function drawOverlay(){
       const len = Math.hypot(hp[0] - last[0], hp[1] - last[1]); if (len > 0) label(`${Math.round(len * 10) / 10} sq · ${Math.round(len * map.ft * 10) / 10} ft`, (ax + bx) / 2, (ay + by) / 2 - 18); }
     if (hp){ const [px, py] = toScr(hp[0], hp[1]); octx.fillStyle = '#f1d79c'; octx.strokeStyle = '#000'; octx.lineWidth = 1.5; octx.beginPath(); octx.arc(px, py, 4.5, 0, 7); octx.fill(); octx.stroke(); }
   }
+  if ($('showRanges').checked){ octx.save();
+    for (const L0 of shownLayers(map)) for (const o of L0.struct.objects){ const L = lightOf(o, map); if (!L) continue; const lr = map.lightRad ?? 1, [sx, sy] = toScr(o.x, o.y);
+      const ring = (r, dash, col) => { octx.strokeStyle = col; octx.lineWidth = 1.6; octx.setLineDash(dash); octx.beginPath();
+        if (L.cone){ const h = L.cone * Math.PI / 360; octx.moveTo(sx, sy); octx.arc(sx, sy, r * zoom, L.dir - h, L.dir + h); octx.closePath(); } else octx.arc(sx, sy, r * zoom, 0, 7); octx.stroke(); };
+      if (L.b > 0) ring(L.b * lr, [], 'rgba(255,214,110,.95)'); ring(L.o * lr, [6, 5], 'rgba(255,214,110,.75)'); }
+    octx.restore(); }
   if (tool === 'stamp' && hover){ const [x, y] = objPos(hover[0], hover[1]), sp = getSprite(curStamp, preVar, viewP * objSize(), objTint().c), [sx, sy] = toScr(x, y);
     octx.save(); octx.globalAlpha = .7; octx.translate(sx, sy); octx.rotate(preRot); octx.scale(zoom / viewP, zoom / viewP); octx.drawImage(sp.c, -sp.size / 2, -sp.size / 2); octx.restore(); }
   if (selObj !== null && map.struct.objects[selObj]){ const o = map.struct.objects[selObj], st = STAMPS[o.t], [sx, sy] = toScr(o.x, o.y), r = Math.max(st.w, st.h) * o.s * .55 * zoom;
@@ -1722,7 +1762,25 @@ function rollPre(){ preVar = (Math.random() * 1e6) | 0; if ($('objRandRot').chec
 const objSize = () => +$('objSize').value;
 function objPos(cx, cy){ if (!$('objSnap').checked) return [cx, cy]; if (isHex(map)){ const h = pixelToHex(map, cx, cy); return h ? hexCenter(map, h[0], h[1]) : [cx, cy]; } return [Math.round(cx * 2) / 2, Math.round(cy * 2) / 2]; }
 const objTint = () => $('tintObj').checked && activeHex ? { c: activeHex } : {};
-function placeObject(t, x, y, sc, rot, v){ map.struct.objects.push({ t, x: +x.toFixed(3), y: +y.toFixed(3), r: +rot.toFixed(3), s: +sc.toFixed(3), v, f: 0, ...objTint() }); }
+let placeLight = { lp: null, off: false };   // light settings for the next object placed
+function placeObject(t, x, y, sc, rot, v){ const st = STAMPS[t], L = {};
+  if (st.light || st.lp){ if (placeLight.lp && placeLight.lp !== st.lp) L.lp = placeLight.lp; if (placeLight.off) L.off = 1; }
+  map.struct.objects.push({ t, x: +x.toFixed(3), y: +y.toFixed(3), r: +rot.toFixed(3), s: +sc.toFixed(3), v, f: 0, ...objTint(), ...L }); }
+for (const [k, p] of Object.entries(LIGHT_PRESETS)){ const op = document.createElement('option'); op.value = k; op.textContent = p.name; $('lightPreset').appendChild(op); }
+// The light row edits the selected light, or sets up the next light to be placed.
+function updateLightRow(){
+  const o = selObj !== null ? map.struct.objects[selObj] : null, so = o && (STAMPS[o.t].light || STAMPS[o.t].lp) ? o : null;
+  const placing = !so && tool === 'stamp' && (STAMPS[curStamp].light || STAMPS[curStamp].lp);
+  $('lightRow').style.display = so || placing ? '' : 'none'; if (!so && !placing) return;
+  const st = STAMPS[so ? so.t : curStamp], R2 = map.rules === '5e' ? '5e' : '35';
+  for (const op of $('lightPreset').options){ const pr = LIGHT_PRESETS[op.value][R2]; op.textContent = `${LIGHT_PRESETS[op.value].name} — ${pr[0] ? pr[0] + '/' : ''}${pr[1]} ft`; }
+  $('lightRowLbl').textContent = so ? 'Selected light' : 'Light';
+  $('lightPreset').value = (so ? so.lp : placeLight.lp) || st.lp || 'torch'; $('lightOn').checked = so ? !so.off : !placeLight.off;
+}
+$('lightPreset').onchange = $('lightOn').onchange = () => {
+  const o = selObj !== null ? map.struct.objects[selObj] : null;
+  if (o && (STAMPS[o.t].light || STAMPS[o.t].lp)){ pushUndo(); const st = STAMPS[o.t]; if ($('lightPreset').value === st.lp) delete o.lp; else o.lp = $('lightPreset').value; if ($('lightOn').checked) delete o.off; else o.off = 1; structChanged(); drawOverlay(); }
+  else { placeLight = { lp: $('lightPreset').value, off: !$('lightOn').checked }; } };
 function scatterAt(cx, cy){
   const rad = +$('brushSize').value / 2, set = SCATTER_SETS[$('scatterSet').value], keys = set.keys || [curStamp], objs = map.struct.objects;
   const near = objs.filter(o => Math.hypot(o.x - cx, o.y - cy) < rad + 2);
@@ -1978,12 +2036,13 @@ const TOOL_NAMES = { brush: 'Terrain brush', cell: 'Cell paint', rect: 'Rectangl
   roof: 'Roof — drag over a building; hide the layer to see inside',
   label: 'Label — click to add (numbers become room badges), click a label to edit, drag to move · labels export only on the DM map unless you tick Include labels',
   stamp: 'Place object — click to place · , and . rotate · Alt-free / snap option in panel', scatter: 'Scatter — paint objects with the brush size and density', select: 'Select — click an object, drag to move · Del delete · , . rotate · - = resize · Ctrl+D copy', stairs: 'Stairs — drag in the direction they go down', xstruct: 'Remove — click or drag over walls, doors, stairs' };
-function setTool(t){ if (t !== 'wall') wallDraft = null; if (t !== 'room') roomDraft = null; if (t !== 'select') selObj = null; tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); $('stTool').textContent = TOOL_NAMES[t]; if (t !== 'measure') ruler = null; view.style.cursor = t === 'pan' ? 'grab' : ''; drawOverlay(); }
+function setTool(t){ setTimeout(updateLightRow, 0); if (t !== 'wall') wallDraft = null; if (t !== 'room') roomDraft = null; if (t !== 'select') selObj = null; tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); $('stTool').textContent = TOOL_NAMES[t]; if (t !== 'measure') ruler = null; view.style.cursor = t === 'pan' ? 'grab' : ''; drawOverlay(); }
 document.querySelectorAll('#tools button').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 
 function buildTerrainPanel(){
   const box = $('terrains'); box.innerHTML = '';
-  DISPLAY.forEach((i, pos) => { const t = TERRAINS[i];
+  const hidT = hiddenTerrains();
+  DISPLAY.forEach((i, pos) => { const t = TERRAINS[i]; if (hidT.has(t.key)) return;
     const d = document.createElement('div'); d.className = 'tsw'; d.dataset.i = i; d.title = `${t.name} (${keyLabel(pos).replace('⇧', 'Shift+')})`;
     const c = document.createElement('canvas'); c.width = 104; c.height = 46;
     const tex = genTexture(i, 20, 12345); const cx = c.getContext('2d'); cx.fillStyle = cx.createPattern(tex, 'repeat'); cx.fillRect(0, 0, 104, 46);
@@ -2000,14 +2059,35 @@ function buildStampPanel(){
     const R = Math.min(52, 64 / Math.max(st.w, st.h) * .75), sp = getSprite(k, 7, R);
     x.globalAlpha = .45; x.drawImage(sp.sh, 32 - sp.size / 2 + 2, 26 - sp.size / 2 + 3); x.globalAlpha = 1; x.drawImage(sp.c, 32 - sp.size / 2, 26 - sp.size / 2);
     d.appendChild(c); const sp2 = document.createElement('span'); sp2.textContent = st.name; d.appendChild(sp2);
-    d.onclick = () => { curStamp = k; rollPre(); buildStampPanel(); if (tool === 'scatter') $('scatterSet').value = 'current'; else setTool('stamp'); };
+    d.onclick = () => { curStamp = k; placeLight = { lp: null, off: false }; setTimeout(updateLightRow, 0); rollPre(); buildStampPanel(); if (tool === 'scatter') $('scatterSet').value = 'current'; else setTool('stamp'); };
     box.appendChild(d); }
 }
 document.querySelectorAll('#stampTabs button').forEach(b => b.onclick = () => { stampCat = b.dataset.cat; document.querySelectorAll('#stampTabs button').forEach(x => x.classList.toggle('on', x === b)); buildStampPanel(); });
 for (const [k, v] of Object.entries(SCATTER_SETS)){ const o = document.createElement('option'); o.value = k; o.textContent = v.name; $('scatterSet').appendChild(o); }
 $('scatterSet').value = 'forest';
-function showSel(){ if (selObj === null || !map.struct.objects[selObj]){ $('stTool').textContent = TOOL_NAMES[tool]; return; } const o = map.struct.objects[selObj];
+function showSel(){ updateLightRow(); if (selObj === null || !map.struct.objects[selObj]){ $('stTool').textContent = TOOL_NAMES[tool]; return; } const o = map.struct.objects[selObj];
   $('stTool').textContent = `Selected: ${STAMPS[o.t].name} · size ${Math.round(o.s * 100)}% · ${Math.round(((o.r * 180 / Math.PI) % 360 + 360) % 360)}°`; }
+/* ---------- theme packs: show or hide each pack's object tab and terrain swatches ---------- */
+const PACKS = {
+  japan: { name: 'Japan', cats: ['japan'], terrains: ['tatami', 'engawa', 'gravel', 'moss'] },
+};
+const packsOff = () => new Set((lsGet('md-packs-off') || '').split('|').filter(Boolean));
+const hiddenCats = () => { const off = packsOff(); return new Set(Object.entries(PACKS).filter(([k]) => off.has(k)).flatMap(([, p]) => p.cats)); };
+const hiddenTerrains = () => { const off = packsOff(); return new Set(Object.entries(PACKS).filter(([k]) => off.has(k)).flatMap(([, p]) => p.terrains)); };
+function buildPacksPanel(){
+  const box = $('packs'); box.innerHTML = ''; const off = packsOff();
+  for (const [k, p] of Object.entries(PACKS)){ const r = document.createElement('div'); r.className = 'row';
+    r.innerHTML = `<label for="pk_${k}">${p.name}</label><input type="checkbox" id="pk_${k}" ${off.has(k) ? '' : 'checked'}>`;
+    r.querySelector('input').onchange = ev => { const o = packsOff(); ev.target.checked ? o.delete(k) : o.add(k); lsSet('md-packs-off', [...o].join('|')); applyPacks(); };
+    box.appendChild(r); }
+  const note = document.createElement('div'); note.className = 'hint'; note.style.cssText = 'font-size:11.5px;color:var(--dim)'; note.textContent = 'Hiding a pack only tidies the panel; maps that use it still draw it.'; box.appendChild(note);
+}
+function applyPacks(){
+  const hc = hiddenCats(); document.querySelectorAll('#stampTabs button').forEach(b => b.style.display = hc.has(b.dataset.cat) ? 'none' : '');
+  if (hc.has(stampCat)){ stampCat = 'nature'; document.querySelectorAll('#stampTabs button').forEach(x => x.classList.toggle('on', x.dataset.cat === 'nature')); }
+  buildTerrainPanel(); buildStampPanel(); selectTerrain(curTerrain);
+}
+
 /* ---------- layers panel ---------- */
 const LAYER_PRESETS = { empty: ['Layer', {}], roofs: ['Roofs', {}], upper: ['Upper floor', { opacity: .6 }], event: ['After event', {}], dm: ['DM notes', { dm: true }] };
 function buildLayerPanel(){
@@ -2124,6 +2204,8 @@ document.querySelectorAll('#touchBar button').forEach(b => b.onclick = () => { c
   else nudgeSel(a); });
 $('fingerNav').checked = lsGet('md-fingernav') === '1'; $('penPressure').checked = lsGet('md-pressure') === '1';
 setTouchUI(lsGet('md-touchbar') === '1' || (lsGet('md-touchbar') === null && matchMedia('(pointer: coarse)').matches), false);
+$('lightRules').onchange = () => { map.rules = $('lightRules').value; updateLightRow(); nightSoon(); drawOverlay(); touchSave(); };
+$('showRanges').onchange = drawOverlay;
 $('occlude').onchange = () => { map.occlude = $('occlude').checked; nightSoon(); touchSave(); };
 $('nightStr').oninput = () => { map.nightStr = +$('nightStr').value; syncOutputs(); nightSoon(); touchSave(); };
 $('lightRad').oninput = () => { map.lightRad = +$('lightRad').value; syncOutputs(); nightSoon(); touchSave(); };
@@ -2186,7 +2268,7 @@ function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return nu
 function thumbnail(){ const w = 220, h = Math.max(1, Math.round(w * map.rows / map.cols)); const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
   for (const l of map.layers) if (l.visible){ const lc = layerCanvases(l); x.globalAlpha = l.opacity; x.drawImage(lc.t, 0, 0, w, h); x.drawImage(lc.s, 0, 0, w, h); } x.globalAlpha = 1; return c.toDataURL('image/jpeg', .75); }
 const extraLayers = m => (m.layers || []).slice(1).map(l => ({ id: l.id, name: l.name, visible: l.visible, opacity: l.opacity, dm: l.dm, labels: l.labels, struct: l.struct }));
-function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
+function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
 let saveTimer = 0;
 function touchSave(){ dirtySave = true; $('stSave').textContent = 'Unsaved changes…'; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500); }
 async function saveNow(){
@@ -2202,11 +2284,11 @@ function migrateCustom(m, oldBase){
   if (m.base >= oldBase && m.base < oldBase + n) m.base = CUSTOM_BASE + m.base - oldBase;
   return m;
 }
-function fromRecord0(r){ return gridInit({ showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), created: r.created, thumb: r.thumb }); }
+function fromRecord0(r){ return gridInit({ rules: r.rules === '5e' ? '5e' : '35', showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), created: r.created, thumb: r.thumb }); }
 
 function openMap(m){
   map = gridInit(m); if (!map.layers) ensureLayers(map); map.custom = map.custom || []; LV.forEach(c => { c.t.remove(); c.s.remove(); }); LV.clear();
-  { const al = map.layers.find(l => l.id === map.activeLayer) || map.layers[0]; map.labels = al.labels; map.struct = al.struct; } $('nightStr').value = map.nightStr ?? .7; $('lightRad').value = map.lightRad ?? 1; $('occlude').checked = map.occlude !== false; applyCustoms(); buildCustomPanel(); undoStack = []; redoStack = []; updUndo(); texCache.clear();
+  { const al = map.layers.find(l => l.id === map.activeLayer) || map.layers[0]; map.labels = al.labels; map.struct = al.struct; } $('nightStr').value = map.nightStr ?? .7; $('lightRad').value = map.lightRad ?? 1; $('occlude').checked = map.occlude !== false; $('lightRules').value = map.rules === '5e' ? '5e' : '35'; applyCustoms(); buildCustomPanel(); undoStack = []; redoStack = []; updUndo(); texCache.clear();
   if (curTerrain >= TERRAINS.length || TERRAINS[curTerrain].hole) selectTerrain(DISPLAY[0]); else selectTerrain(curTerrain);
   $('mapName').value = map.name; $('soft').value = map.soft; syncOutputs(); updateInfo();
   applyTop(); SEASON = map.season || 'summer'; $('seasonSel').value = SEASON; buildStampPanel(); map.tod = map.tod || (map.night ? 'night' : 'day'); setSun(map.tod);
@@ -2276,12 +2358,12 @@ function cleanCustom(a){ return (Array.isArray(a) ? a : []).map(c => c && /^#[0-
 function cleanStruct(o){ const s = emptyStruct(); if (!o) return s; const num = v => +v || 0;
   for (const w of o.walls || []) s.walls.push({ x1: num(w.x1), y1: num(w.y1), x2: num(w.x2), y2: num(w.y2), mat: WALLMATS[w.mat] ? w.mat : 'stone', th: clamp(num(w.th) || .25, .05, 1) });
   for (const d of o.doors || []) s.doors.push({ x: num(d.x) | 0, y: num(d.y) | 0, o: d.o === 'v' ? 'v' : 'h', type: ['door','double','secret','portcullis','window','opening','shoji'].includes(d.type) ? d.type : 'door' });
-  for (const b of o.objects || []) if (STAMPS[b.t]) s.objects.push({ t: b.t, x: num(b.x), y: num(b.y), r: num(b.r), s: clamp(num(b.s) || 1, .2, 5), v: num(b.v) | 0, f: b.f ? 1 : 0, ...(/^#[0-9a-f]{6}$/i.test(b.c || '') ? { c: b.c } : {}) });
+  for (const b of o.objects || []) if (STAMPS[b.t]) s.objects.push({ t: b.t, x: num(b.x), y: num(b.y), r: num(b.r), s: clamp(num(b.s) || 1, .2, 5), v: num(b.v) | 0, f: b.f ? 1 : 0, ...(/^#[0-9a-f]{6}$/i.test(b.c || '') ? { c: b.c } : {}), ...(LIGHT_PRESETS[b.lp] ? { lp: b.lp } : {}), ...(b.off ? { off: 1 } : {}) });
   for (const l of o.labels || []) if (l && String(l.text || '').trim()) s.labels.push({ x: num(l.x), y: num(l.y), text: String(l.text).slice(0, 80), size: clamp(num(l.size) || .5, .15, 3) });
   for (const r of o.roofs || []) s.roofs.push({ x0: num(r.x0), y0: num(r.y0), x1: num(r.x1), y1: num(r.y1), mat: ROOFMATS[r.mat] ? r.mat : 'tiles', ...(/^#[0-9a-f]{6}$/i.test(r.c || '') ? { c: r.c } : {}) });
   for (const t of o.stairs || []) s.stairs.push({ x0: num(t.x0), y0: num(t.y0), x1: num(t.x1), y1: num(t.y1), dir: 'nsew'.includes(t.dir) && t.dir ? t.dir : 's' });
   return s; }
-function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)),
+function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)),
   layers: extraLayers(m).map(l => ({ ...l, labels: u8ToB64(new Uint8Array(l.labels)) })) }; }
 function parseProject(o){
   if (!o || o.format !== 'map-drawing/1') throw new Error('Not a Map Drawing project file');
@@ -2297,7 +2379,7 @@ function parseProject(o){
   const base = Math.max(0, TERRAINS.findIndex((t, i) => i < BUILTIN && t.key === o.base));
   const grid = ['square', 'hexflat', 'hexpointy'].includes(o.grid) ? o.grid : 'square';
   if (grid !== 'square'){ const e = hexExtent(grid, o.hcols | 0, o.hrows | 0); if (!(o.hcols > 0 && o.hrows > 0) || Math.ceil(e.w - 1e-6) !== cols || Math.ceil(e.h - 1e-6) !== rows) throw new Error('Hex grid size does not match the map'); }
-  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, _extras: extras });
+  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, rules: o.rules === '5e' ? '5e' : '35', _extras: extras });
 }
 $('bImport').onclick = () => $('fileIn').click();
 $('fileIn').onchange = async () => {
@@ -2330,7 +2412,7 @@ $('eJson').onclick = () => download(new Blob([JSON.stringify(projectJSON(map))],
 
 /* ---------- boot ---------- */
 (async function boot(){
-  buildTerrainPanel(); buildStampPanel(); buildPalette(); setActive(null); rollPre(); selectTerrain(DISPLAY[0]); setTool('brush'); syncOutputs(); resizeOverlay();
+  buildPacksPanel(); buildTerrainPanel(); applyPacks(); buildPalette(); setActive(null); rollPre(); selectTerrain(DISPLAY[0]); setTool('brush'); syncOutputs(); resizeOverlay();
   try { db = await openDB(); } catch (e) { $('stSave').textContent = 'Storage unavailable — use Export project to keep work'; }
   let m = null;
   if (db){ const last = lsGet('md-last'); if (last) { const r = await dbGet(last); if (r) m = fromRecord(r); }
