@@ -1632,11 +1632,59 @@ Object.assign(SCATTER_SETS, {
   foundry:  { name: 'Foundry yard', keys: ['coal', 'coal', 'gear', 'barrel'] },
 });
 STAMP_KEYS.push(...Object.keys(STAMPS).filter(k => !STAMP_KEYS.includes(k) && STAMPS[k].cat !== 'hidden'));
+// ---- Great tree: oblique view (trunk on the ground, crown leaning up the screen) with its own cast shadow ----
+function greatTrunk(c, R, rnd){
+  const by = R * 1.25, g0 = c.createRadialGradient(0, by, 0, 0, by, R * .8); g0.addColorStop(0, 'rgba(0,0,0,.55)'); g0.addColorStop(1, 'rgba(0,0,0,0)');
+  c.save(); c.scale(1, .38); c.fillStyle = g0; c.beginPath(); c.arc(0, by / .38, R * .8, 0, 7); c.fill(); c.restore();
+  c.lineCap = 'round';
+  for (let i = 0; i < 5; i++){ const a = Math.PI * (.05 + i * .225) + (rnd() - .5) * .25, ex = Math.cos(a) * R * (.26 + rnd() * .1), ey = by + Math.sin(a) * R * .1, w = R * .07;   // root flares, front half only
+    for (const [col, k] of [[rgba(RAMP.bark, .02, .9), 1.25], [rgba(RAMP.bark, .38), 1]]){ c.fillStyle = col; c.beginPath(); c.moveTo(ex * .2 - w * k, by - R * .12); c.quadraticCurveTo(ex * .55, by - R * .05, ex, ey); c.quadraticCurveTo(ex * .55, by + R * .02, ex * .2 + w * k, by - R * .04); c.closePath(); c.fill(); } }
+  const tx = R * .05, ty = -R * .3, poly = k => { c.beginPath(); c.moveTo(-R * .2 * k, by); c.quadraticCurveTo(-R * .12 * k, by - R * .5, tx - R * .1 * k, ty); c.lineTo(tx + R * .1 * k, ty); c.quadraticCurveTo(R * .14 * k, by - R * .5, R * .2 * k, by); c.closePath(); };
+  c.fillStyle = rgba(RAMP.bark, .02); poly(1.12); c.fill();
+  const g = c.createLinearGradient(-R * .2, 0, R * .2, 0); g.addColorStop(0, rgba(RAMP.bark, .85)); g.addColorStop(.45, rgba(RAMP.bark, .55)); g.addColorStop(1, rgba(RAMP.bark, .08)); c.fillStyle = g; poly(1); c.fill();
+  c.save(); poly(1); c.clip(); c.strokeStyle = rgba(RAMP.bark, .05, .55); c.lineWidth = Math.max(.7, R / 45);
+  for (let i = 0; i < 9; i++){ const x = (rnd() - .5) * R * .36; c.beginPath(); c.moveTo(x, by); for (let y = by; y > ty; y -= R * .1) c.lineTo(x * (.55 + .45 * (y - ty) / (by - ty)) + tx * (1 - (y - ty) / (by - ty)) + (rnd() - .5) * R * .03, y); c.stroke(); } c.restore();
+  for (const [a, l] of [[-2.2, .75], [-1.0, .7], [-1.65, .6]]){ c.strokeStyle = rgba(RAMP.bark, .3); c.lineWidth = R * .07; c.beginPath(); c.moveTo(tx, ty + R * .05); c.quadraticCurveTo(tx + Math.cos(a) * R * l * .5, ty + Math.sin(a) * R * l * .4, tx + Math.cos(a) * R * l, ty + Math.sin(a) * R * l); c.stroke(); }
+}
+function greatBranches(c, R, rnd){ // winter: bare limbs fanning into the crown's space
+  const br = (x, y, a, len, w, d) => { const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len * .85;
+    c.strokeStyle = rgba(RAMP.bark, d > 2 ? .3 : .45); c.lineWidth = Math.max(.6, w); c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo((x + ex) / 2 + (rnd() - .5) * len * .2, (y + ey) / 2, ex, ey); c.stroke();
+    if (d > 0) for (const sg of [-1, 1]) br(ex, ey, a + sg * (.3 + rnd() * .35), len * (.68 + rnd() * .1), w * .66, d - 1); };
+  c.lineCap = 'round'; for (const a of [-2.3, -1.85, -1.3, -.85]) br(R * .05, -R * .25, a + (rnd() - .5) * .2, R * .55, R * .09, 4);
+}
+Object.assign(STAMPS, {
+  bigtree: { cat: 'nature', name: 'Great tree', w: 4, h: 4, z: 3, hg: 6, tint: 'leaf', baseY: 1.25, crownR: 1.35, ownShadow: 1,
+    draw(c, R, rnd){
+      greatTrunk(c, R, rnd);
+      const S = c.canvas.width, oc = document.createElement('canvas'); oc.width = oc.height = S; const o = oc.getContext('2d'); o.setTransform(c.getTransform());
+      const cy = -R * .82;
+      o.save(); o.translate(0, cy); treeCrown(o, R * 1.32, RAMP.leaf, rnd, R, 11); o.restore();                       // main mass
+      const sk = [[-.95, .25, .42], [-.45, .52, .36], [.1, .6, .4], [.62, .45, .38], [1.0, .15, .34]];               // lower boughs, in shade
+      for (const [x, y, r] of sk){ o.save(); o.translate(R * (x + (rnd() - .5) * .15), cy + R * (y + (rnd() - .5) * .12)); treeCrown(o, R * r * (.85 + rnd() * .3), RAMP.leaf, rnd, R, 6); o.restore(); }
+      o.save(); o.translate(-R * .2, cy - R * .38); treeCrown(o, R * .82, RAMP.leaf, rnd, R, 8); o.restore();            // sunlit crown top
+      o.save(); o.translate(R * .35, cy - R * .55); treeCrown(o, R * .45, RAMP.leaf, rnd, R, 6); o.restore();
+      o.save(); o.translate(-R * .55, cy - R * .7); treeCrown(o, R * .38, RAMP.leaf, rnd, R, 6); o.restore();
+      o.globalCompositeOperation = 'source-atop';
+      const sh = o.createLinearGradient(0, cy - R * 1.2, 0, cy + R * 1.25); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(.45, 'rgba(0,0,0,.08)'); sh.addColorStop(1, 'rgba(0,8,0,.5)'); o.fillStyle = sh; o.fillRect(-R * 2.6, -R * 2.6, R * 5.2, R * 5.2);
+      const hi = o.createRadialGradient(-R * .55, cy - R * .9, 0, -R * .55, cy - R * .9, R * 1.1); hi.addColorStop(0, 'rgba(255,250,200,.22)'); hi.addColorStop(1, 'rgba(255,250,200,0)'); o.fillStyle = hi; o.fillRect(-R * 2.6, -R * 2.6, R * 5.2, R * 5.2);
+      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(oc, 0, 0); c.restore(); },
+    drawBare(c, R, rnd){ greatTrunk(c, R, rnd); greatBranches(c, R, rnd); } },
+});
+STAMP_KEYS.push('bigtree');
+function drawOwnShadow(ctx, o, st, P){ // a tree standing at its base: shadow falls away from the sun, crown-shaped, plus the trunk's line
+  const R2 = P * o.s, rr = o.r || 0, b = st.baseY * R2, bx = o.x * P - Math.sin(rr) * b, by = o.y * P + Math.cos(rr) * b, H = st.hg * R2 * .55;
+  const sx = bx + SUN.dx * H, sy = by + SUN.dy * H, L = Math.hypot(SUN.dx, SUN.dy), cr = st.crownR * R2, rnd = mulberry((o.v * 131 + 7) | 0);
+  ctx.save(); ctx.globalAlpha = Math.min(1, SUN.a * 1.1); ctx.filter = `blur(${(R2 * .1).toFixed(1)}px)`; ctx.fillStyle = '#000';
+  ctx.strokeStyle = '#000'; ctx.lineCap = 'round'; ctx.lineWidth = R2 * .3; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + (sx - bx) * .75, by + (sy - by) * .75); ctx.stroke();
+  ctx.translate(sx, sy); ctx.rotate(Math.atan2(SUN.dy, SUN.dx)); ctx.scale(1 + L * 2, .8);
+  ctx.beginPath(); ctx.arc(0, 0, cr * .78, 0, 7); for (let i = 0; i < 9; i++){ const a = i / 9 * 6.28 + rnd() * .4, d = cr * .62, r = cr * (.3 + rnd() * .12); ctx.moveTo(Math.cos(a) * d + r, Math.sin(a) * d); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, r, 0, 7); }
+  ctx.globalAlpha *= seasonFor(o.t, o.v, o.c).mode === 'bare' ? .18 : .8; ctx.fill(); ctx.restore();
+}
 for (const [k, n] of [['jgarden', ['Japanese garden', ['maple', 'sakura', 'jpine', 'mossrock', 'mossrock']]], ['bamboog', ['Bamboo grove', ['bamboo']]], ['sakurag', ['Cherry orchard', ['sakura']]]]) SCATTER_SETS[k] = { name: n[0], keys: n[1] };
 
 
 const spriteCache = new Map();
-const LEAFY = { oak: 1, bush: 1, woods: 1, sakura: 1, maple: 1 }, JP_TREES = { sakura: 1, maple: 1 }, PINEY = { pine: 1, pinewood: 1, jpine: 1, bamboo: 1 }, GRASSY = { tuftg: 1, reeds: 1, hills: 1, flowers: 1, swamp: 1 };
+const LEAFY = { oak: 1, bigtree: 1, bush: 1, woods: 1, sakura: 1, maple: 1 }, JP_TREES = { sakura: 1, maple: 1 }, PINEY = { pine: 1, pinewood: 1, jpine: 1, bamboo: 1 }, GRASSY = { tuftg: 1, reeds: 1, hills: 1, flowers: 1, swamp: 1 };
 const AUTUMN = ['#c0641e', '#d8902a', '#b13a1e', '#a8882a', '#cf9e2e'];
 function seasonFor(t, v, tint){
   const st = STAMPS[t], r = mulberry((v * 7 + 3) | 0)(), out = {};
@@ -1658,7 +1706,7 @@ function getSprite(t, v, R, tint){
   x.translate(size / 2, size / 2); if (st.cat === 'world') x.scale(1.3, 1.3);
   const tk = tint && st.tint, saved = tk && RAMP[tk]; if (tk) RAMP[tk] = rampFromHex(tint).map(hexRgb);
   const rs = mulberry((v * 2654435761 + t.length * 97 + t.charCodeAt(0)) | 0);
-  try { if (sv.mode === 'bare') STAMPS.dead.draw(x, R * Math.max(st.w, st.h) / 1.8, rs); else if (t === 'flowers' && SEASON === 'winter') STAMPS.tuftg.draw(x, R, rs); else st.draw(x, R, rs); } finally { if (tk) RAMP[tk] = saved; }
+  try { if (sv.mode === 'bare' && st.drawBare) st.drawBare(x, R, rs); else if (sv.mode === 'bare') STAMPS.dead.draw(x, R * Math.max(st.w, st.h) / 1.8, rs); else if (t === 'flowers' && SEASON === 'winter') STAMPS.tuftg.draw(x, R, rs); else st.draw(x, R, rs); } finally { if (tk) RAMP[tk] = saved; }
   if (sv.mode){ const rr = mulberry((v * 31 + 7) | 0), half = size / 2 / (st.cat === 'world' ? 1.3 : 1); x.save(); x.globalCompositeOperation = 'source-atop';
     if (sv.mode === 'blossom'){ const cols = ['#f6c9d6', '#fbe3ea', '#ffffff', '#f2a7bf'];
       for (let i = 0; i < 55 * Math.max(st.w, st.h); i++){ x.fillStyle = cols[rr() * 4 | 0]; x.beginPath(); x.arc((rr() - .5) * 2 * half, (rr() - .5) * 2 * half, Math.max(.7, R * (.025 + rr() * .03)), 0, 7); x.fill(); } }
@@ -1670,14 +1718,15 @@ function getSprite(t, v, R, tint){
   y.filter = `brightness(0) blur(${Math.max(.5, R * .05).toFixed(1)}px)`; y.drawImage(c, 0, 0);
   s = { c, sh, size }; spriteCache.set(key, s); return s;
 }
-const CANOPY = { oak: 1, pine: 1, sakura: 1, maple: 1, jpine: 1, bamboo: 1, palm: 1, jtree: 1, mangrove: 1, giantshroom: 1 };
+const CANOPY = { oak: 1, bigtree: 1, pine: 1, sakura: 1, maple: 1, jpine: 1, bamboo: 1, palm: 1, jtree: 1, mangrove: 1, giantshroom: 1 };
 function drawObjects(ctx, m, P){
   const objs = m.struct.objects; if (!objs || !objs.length) return;
   const order = objs.map((o, i) => i).sort((a, b) => (STAMPS[objs[a].t].z - STAMPS[objs[b].t].z) || a - b);
   for (const pass of [0, 1]) for (const i of order){
     const o = objs[i], st = STAMPS[o.t]; if (!st) continue;
     const t2 = !SHOW_TOP && st.openAs ? st.openAs : o.t, sp = getSprite(t2, o.v, P * o.s, o.c);
-    if (!SHOW_TOP && CANOPY[o.t]){ ctx.save(); ctx.translate(o.x * P, o.y * P); ctx.rotate(o.r || 0);
+    if (SHOW_TOP && st.ownShadow && pass === 0){ drawOwnShadow(ctx, o, st, P); continue; }
+    if (!SHOW_TOP && CANOPY[o.t]){ ctx.save(); ctx.translate(o.x * P, o.y * P); ctx.rotate(o.r || 0); if (pass === 1 && st.baseY) ctx.translate(0, st.baseY * P * o.s);
       if (pass === 0){ ctx.globalAlpha = .38; ctx.drawImage(sp.sh, -sp.size / 2, -sp.size / 2); }
       else { const r = P * o.s * (o.t === 'pine' ? .07 : .1); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.arc(r * .3, r * .4, r * 1.1, 0, 7); ctx.fill();
         const g = ctx.createRadialGradient(-r * .3, -r * .3, 0, 0, 0, r); g.addColorStop(0, '#7a5a3c'); g.addColorStop(1, '#3a2618'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); }
