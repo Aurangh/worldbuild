@@ -26,10 +26,10 @@ button:disabled{opacity:.4;cursor:default}
 #tools button kbd{position:absolute;right:2px;bottom:1px;font-size:9px;color:var(--dim);font-family:inherit}
 #tools hr{width:30px;border:0;border-top:1px solid var(--line);margin:4px 0}
 #view{position:relative;overflow:hidden;background:#0c0d10 radial-gradient(circle at 50% 50%,#16181d,#0b0c0f);cursor:crosshair;touch-action:none}
-#mapCanvas,#structCanvas,.lcv{position:absolute;left:0;top:0;transform-origin:0 0}
+#mapCanvas,#reliefCanvas,#structCanvas,.lcv{position:absolute;left:0;top:0;transform-origin:0 0}
 .lcv{pointer-events:none}
 #mapCanvas{box-shadow:0 0 0 1px #000,0 10px 40px rgba(0,0,0,.6)}
-#structCanvas,#nightCanvas,#glowCanvas,#labelCanvas{pointer-events:none}
+#reliefCanvas,#structCanvas,#nightCanvas,#glowCanvas,#labelCanvas{pointer-events:none}
 #nightCanvas,#glowCanvas,#labelCanvas{position:absolute;left:0;top:0;transform-origin:0 0;display:none}
 #nightCanvas{mix-blend-mode:multiply}#glowCanvas{mix-blend-mode:screen}
 #view.lit #nightCanvas,#view.lit #glowCanvas{display:block}#labelCanvas{display:block}
@@ -142,6 +142,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <button data-tool="fill" title="Flood fill (F)"><svg viewBox="0 0 24 24"><path d="M5 11l7-7 7 7-7 7z"/><path d="M19 15c1 1.5 1.5 2.5 1.5 3.2a1.5 1.5 0 0 1-3 0c0-.7.5-1.7 1.5-3.2z"/></svg><kbd>F</kbd></button>
     <button data-tool="eraser" title="Eraser – paints base terrain (E)"><svg viewBox="0 0 24 24"><path d="M8 20h12"/><path d="M4 15l9-9 6 6-7 7H8z"/></svg><kbd>E</kbd></button>
     <button data-tool="pick" title="Terrain picker (I)"><svg viewBox="0 0 24 24"><path d="M14 4l6 6-2 2-6-6z"/><path d="M13 9l-8 8v3h3l8-8"/></svg><kbd>I</kbd></button>
+    <button data-tool="height" title="Ground height (G) — paint raised or sunken ground, 5 ft a step · Shift-click picks a height"><svg viewBox="0 0 24 24"><path d="M2 19l6-9 4 5 3-4 7 8z"/><path d="M8 10l1.5 2.5"/></svg><kbd>G</kbd></button>
     <hr>
     <button data-tool="wall" title="Wall – click corner to corner, click last point or Esc to finish (W)"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="M3 12h18M9 6v6M15 12v6"/></svg><kbd>W</kbd></button>
     <button data-tool="room" title="Room – drag: floor in current terrain + walls (O)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" stroke-width="3"/><rect x="8" y="8" width="8" height="8" stroke-dasharray="2 2"/></svg><kbd>O</kbd></button>
@@ -161,6 +162,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
 
   <main id="view">
     <canvas id="mapCanvas"></canvas>
+    <canvas id="reliefCanvas"></canvas>
     <canvas id="structCanvas"></canvas>
     <canvas id="nightCanvas"></canvas>
     <canvas id="glowCanvas"></canvas>
@@ -194,6 +196,8 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <h3>Brush</h3>
     <div class="row"><label for="brushSize">Size (squares)</label><output id="brushOut"></output></div>
     <input type="range" id="brushSize" min="0.25" max="8" step="0.25" value="1.5">
+    <div id="heightRow" style="display:none"><div class="row"><label for="hLevel">Ground height</label><output id="hOut">Ground level</output></div>
+    <input type="range" id="hLevel" min="-3" max="6" step="1" value="1"></div>
 
     <h3>Objects</h3>
     <div class="tabs" id="stampTabs"><button data-cat="nature" class="on">Nature</button><button data-cat="ruins">Ruins</button><button data-cat="dungeon">Dungeon</button><button data-cat="furniture">Furniture</button><button data-cat="camp">Camp</button><button data-cat="world">World map</button><button data-cat="japan">Japan</button><button data-cat="cave">Caverns</button><button data-cat="jungle">Jungle</button><button data-cat="ship">Ships</button><button data-cat="steam">Steampunk</button></div>
@@ -1732,7 +1736,11 @@ function drawObjects(ctx, m, P){
         const g = ctx.createRadialGradient(-r * .3, -r * .3, 0, 0, 0, r); g.addColorStop(0, '#7a5a3c'); g.addColorStop(1, '#3a2618'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); }
       ctx.restore(); continue; }
     ctx.save();
-    if (pass === 0){ const k = Math.min(1.6, st.hg) * P * o.s; ctx.globalAlpha = SUN.a * .85; ctx.translate(o.x * P + k * SUN.dx, o.y * P + k * SUN.dy); }
+    if (pass === 0 && st.hg > 1.6){ const k = Math.min(8, st.hg) * P * o.s, n = st.hg > 3 ? 6 : 3, A = SUN.a * .85, a1 = 1 - Math.pow(1 - A, 1 / n);   // tall: shadow stretches from the base
+      ctx.translate(o.x * P, o.y * P); ctx.globalAlpha = a1;
+      for (let q = 1; q <= n; q++){ ctx.save(); ctx.translate(k * SUN.dx * q / n, k * SUN.dy * q / n); ctx.rotate(o.r || 0); if (o.f) ctx.scale(-1, 1); ctx.drawImage(sp.sh, -sp.size / 2, -sp.size / 2); ctx.restore(); }
+      ctx.restore(); continue; }
+    if (pass === 0){ const k = st.hg * P * o.s; ctx.globalAlpha = SUN.a * .85; ctx.translate(o.x * P + k * SUN.dx, o.y * P + k * SUN.dy); }
     else ctx.translate(o.x * P, o.y * P);
     ctx.rotate(o.r || 0); if (o.f) ctx.scale(-1, 1);
     ctx.drawImage(pass === 0 ? sp.sh : sp.c, -sp.size / 2, -sp.size / 2);
@@ -1972,6 +1980,7 @@ function renderFull0(m, P, withGrid, opt = {}){
   for (const l of Ls){ const lv = layerView(m, l);
     const tc = document.createElement('canvas'); tc.width = c.width; tc.height = c.height; const tx = tc.getContext('2d');
     for (let y = 0; y < m.rows; y += strip) for (let x = 0; x < m.cols; x += strip) renderRegion(lv, tx, P, x, y, Math.min(m.cols, x + strip), Math.min(m.rows, y + strip));
+    if (l === m.layers[0]) drawRelief(tx, m, P);
     drawStructure(lv, tx, P, { secret: !!opt.dm });
     ctx.globalAlpha = l.opacity; ctx.drawImage(tc, 0, 0); ctx.globalAlpha = 1; }
   if (opt.tod && opt.tod !== 'day'){ const nt = document.createElement('canvas'); nt.width = c.width; nt.height = c.height; const nx = nt.getContext('2d');
@@ -2035,18 +2044,61 @@ function setupCanvas(){
   mapCanvas.width = map.cols * viewP; mapCanvas.height = map.rows * viewP;
   mapCanvas.style.width = mapCanvas.width + 'px'; mapCanvas.style.height = mapCanvas.height + 'px';
   structCanvas.width = mapCanvas.width; structCanvas.height = mapCanvas.height;
-  for (const cv of [nightCanvas, glowCanvas, labelCanvas]){ cv.width = mapCanvas.width; cv.height = mapCanvas.height; cv.style.width = mapCanvas.style.width; cv.style.height = mapCanvas.style.height; }
+  for (const cv of [nightCanvas, glowCanvas, labelCanvas, reliefCanvas]){ cv.width = mapCanvas.width; cv.height = mapCanvas.height; cv.style.width = mapCanvas.style.width; cv.style.height = mapCanvas.style.height; }
   structCanvas.style.width = mapCanvas.style.width; structCanvas.style.height = mapCanvas.style.height;
   for (const [, c] of LV){ c.t.width = c.s.width = 1; }
-  syncLayerDOM(); renderAllLayers(); drawStructView();
+  syncLayerDOM(); renderAllLayers(); drawStructView(); drawReliefView();
 }
 const nightCanvas = $('nightCanvas'), glowCanvas = $('glowCanvas'), labelCanvas = $('labelCanvas');
+/* ---------- ground height: one level per square, 5 ft a step (−3 … +6) ---------- */
+const H_MIN = -3, H_MAX = 6;
+const hasHeights = m => !!(m.hgt && m.hgt.some(v => v));
+function drawRelief(ctx, m, P){
+  const H = m.hgt; if (!H || !hasHeights(m) || H.length !== m.cols * m.rows) return;
+  const C = m.cols, Rw = m.rows, cell = (a, b) => H[clamp(b, 0, Rw - 1) * C + clamp(a, 0, C - 1)], hb = (x, y) => cell(Math.floor(x), Math.floor(y));
+  const e = .17, hs = (x, y) => (hb(x - e, y - e) + hb(x + e, y - e) + hb(x - e, y + e) + hb(x + e, y + e)) / 4;   // steps soften into short banks
+  let maxH = H_MIN; for (const v of H) if (v > maxH) maxH = v;
+  const SS = C * Rw > 20000 ? 3 : C * Rw > 6000 ? 4 : 6, W = C * SS, Hh = Rw * SS, img = new ImageData(W, Hh), d = img.data;
+  const sl = Math.max(.02, Math.hypot(SUN.dx, SUN.dy)), lx = -SUN.dx / sl, ly = -SUN.dy / sl, lz = 1.1, ln = Math.hypot(lx, ly, lz), Lx = lx / ln, Ly = ly / ln, Lz = lz / ln;
+  const kStep = Math.min(1, .18 / sl);
+  for (let j = 0; j < Hh; j++) for (let i = 0; i < W; i++){
+    const x = (i + .5) / SS, y = (j + .5) / SS, g = hb(x, y);
+    const nx = -(hs(x + e, y) - hs(x - e, y)) / (2 * e) * .35, ny = -(hs(x, y + e) - hs(x, y - e)) / (2 * e) * .35, nn = Math.hypot(nx, ny, 1);
+    let v = (nx * Lx + ny * Ly + Lz) / nn - Lz + g * .03;
+    for (let k = kStep; k <= maxH - g; k += kStep) if (hb(x - SUN.dx * k, y - SUN.dy * k) - g >= k){ v -= SUN.a * .6; break; }
+    const p = (j * W + i) * 4; if (v < 0){ d[p + 3] = Math.min(.68, -v * 1.15) * 255; } else { d[p] = d[p + 1] = d[p + 2] = 255; d[p + 3] = Math.min(.22, v * .8) * 255; } }
+  const tc = document.createElement('canvas'); tc.width = W; tc.height = Hh; tc.getContext('2d').putImageData(img, 0, 0);
+  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(tc, 0, 0, C * P, Rw * P);
+  // cliffs: a drop of 10 ft or more. The south-facing face shows (oblique view); other edges get a hard rim.
+  for (let r = 0; r < Rw; r++) for (let c = 0; c < C; c++){ const h = H[r * C + c], rnd = mulberry(r * 7919 + c * 131 + 17);
+    if (r + 1 < Rw){ const drop = h - H[(r + 1) * C + c]; if (drop >= 2){ const x = c * P, y = (r + 1) * P, fh = Math.min(.9, drop * .16) * P;
+      const g = ctx.createLinearGradient(0, y, 0, y + fh); g.addColorStop(0, 'rgba(128,118,104,.96)'); g.addColorStop(.35, 'rgba(92,84,74,.96)'); g.addColorStop(1, 'rgba(34,30,27,.96)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + P, y); const n = 4; for (let q = n; q >= 0; q--) ctx.lineTo(x + P * q / n, y + fh * (.86 + rnd() * .2)); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(20,16,12,.35)'; ctx.lineWidth = Math.max(.7, P / 60); ctx.beginPath(); for (let q = 0; q < 4; q++){ const sx = x + P * (.1 + rnd() * .8); ctx.moveTo(sx, y + fh * .1); ctx.lineTo(sx + (rnd() - .5) * P * .06, y + fh * (.6 + rnd() * .3)); } ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,248,228,.45)'; ctx.lineWidth = Math.max(1, P / 32); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + P, y); ctx.stroke(); } }
+    const rim = (x0, y0, x1, y1) => { ctx.strokeStyle = 'rgba(10,8,6,.55)'; ctx.lineWidth = Math.max(1, P / 14); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
+    if (c + 1 < C && Math.abs(h - H[r * C + c + 1]) >= 2) rim((c + 1) * P, r * P, (c + 1) * P, (r + 1) * P);
+    if (r + 1 < Rw && H[(r + 1) * C + c] - h >= 2) rim(c * P, (r + 1) * P, (c + 1) * P, (r + 1) * P); }
+  ctx.restore();
+}
+const reliefCanvas = $('reliefCanvas');
+let reliefRaf = false;
+function drawReliefView(){ const x = reliefCanvas.getContext('2d'); x.clearRect(0, 0, reliefCanvas.width, reliefCanvas.height); if (map.layers[0].visible) drawRelief(x, map, viewP); }
+function reliefChanged(){ if (!reliefRaf){ reliefRaf = true; requestAnimationFrame(() => { reliefRaf = false; drawReliefView(); }); } touchSave(); }
+function ensureHgt(){ if (!map.hgt || map.hgt.length !== map.cols * map.rows) map.hgt = new Int8Array(map.cols * map.rows); return map.hgt; }
+function paintHeight(cx, cy, rad, lv){ const H = ensureHgt(); let ch = false; const r2 = Math.max(rad, .5);
+  for (let r = Math.max(0, Math.floor(cy - r2)); r < Math.min(map.rows, Math.ceil(cy + r2)); r++) for (let c = Math.max(0, Math.floor(cx - r2)); c < Math.min(map.cols, Math.ceil(cx + r2)); c++){
+    const inside = Math.hypot(c + .5 - cx, r + .5 - cy) <= r2 || (c === Math.floor(cx) && r === Math.floor(cy)); if (inside && H[r * map.cols + c] !== lv){ H[r * map.cols + c] = lv; ch = true; } }
+  if (ch) reliefChanged(); }
+$('hLevel').oninput = () => { $('hOut').textContent = heightLabel(+$('hLevel').value); };
+function heightLabel(v){ return v === 0 ? 'Ground level' : (v > 0 ? '+' : '−') + Math.abs(v) * 5 + ' ft' + (v > 0 ? ' (raised)' : ' (sunken)'); }
+
 function drawStructView(){
   for (const l of map.layers){ const cv = layerCanvases(l).s, x = cv.getContext('2d'); x.clearRect(0, 0, cv.width, cv.height); if (l.visible) drawStructure(layerView(map, l), x, viewP, { secret: $('showSecret').checked }); }
   const lx = labelCanvas.getContext('2d'); lx.clearRect(0, 0, labelCanvas.width, labelCanvas.height); if ($('showLabels').checked) drawLabels(lx, shownLayers(map).flatMap(l => l.struct.labels || []), viewP);
   drawNightView(); }
 function drawNightView(){ const tod = map.tod || 'day', lit = tod !== 'day'; view.classList.toggle('lit', lit); $('todSel').value = tod;
-  const f = lit ? `saturate(${TOD[tod].sat})` : ''; for (const cv of [mapCanvas, structCanvas]) cv.style.filter = f; for (const [, c] of LV){ c.t.style.filter = c.s.style.filter = f; }
+  const f = lit ? `saturate(${TOD[tod].sat})` : ''; for (const cv of [mapCanvas, reliefCanvas, structCanvas]) cv.style.filter = f; for (const [, c] of LV){ c.t.style.filter = c.s.style.filter = f; }
   if (!lit) return;
   const L = buildNight(map, viewP, mapCanvas.width, mapCanvas.height, map.nightStr ?? .7, map.lightRad ?? 1, true, tod);
   for (const [cv, src] of [[nightCanvas, L.dark], [glowCanvas, L.glow]]){ const x = cv.getContext('2d'); x.clearRect(0, 0, cv.width, cv.height); x.drawImage(src, 0, 0); } }
@@ -2062,7 +2114,7 @@ function markDirty(x0, y0, x1, y1){
   touchSave();
 }
 function applyView(){ const tr = `translate(${panX}px,${panY}px) scale(${zoom / viewP})`;
-  for (const cv of [mapCanvas, structCanvas, nightCanvas, glowCanvas, labelCanvas]) cv.style.transform = tr; for (const [, c] of LV){ c.t.style.transform = c.s.style.transform = tr; } $('stZoom').textContent = `Zoom ${Math.round(zoom / map.px * 100)}%`; drawOverlay(); }
+  for (const cv of [mapCanvas, reliefCanvas, structCanvas, nightCanvas, glowCanvas, labelCanvas]) cv.style.transform = tr; for (const [, c] of LV){ c.t.style.transform = c.s.style.transform = tr; } $('stZoom').textContent = `Zoom ${Math.round(zoom / map.px * 100)}%`; drawOverlay(); }
 function fit(){ const w = view.clientWidth, h = view.clientHeight; zoom = Math.min(w / map.exW, h / map.exH) * 0.92; panX = (w - map.exW * zoom) / 2; panY = (h - map.exH * zoom) / 2; applyView(); }
 function resizeOverlay(){ const dpr = devicePixelRatio || 1; overlay.width = view.clientWidth * dpr; overlay.height = view.clientHeight * dpr; overlay.style.width = view.clientWidth + 'px'; overlay.style.height = view.clientHeight + 'px'; octx.setTransform(dpr, 0, 0, dpr, 0, 0); drawOverlay(); }
 const toCell = (sx, sy) => [(sx - panX) / zoom, (sy - panY) / zoom];
@@ -2317,9 +2369,9 @@ function rectBounds(rd){ const a = [Math.min(rd.a[0], rd.b[0]), Math.min(rd.a[1]
   return [[clamp(a[0], 0, map.cols), clamp(a[1], 0, map.rows)], [clamp(b[0], 0, map.cols), clamp(b[1], 0, map.rows)]]; }
 
 /* ---------- undo ---------- */
-const snapState = copy => ({ lid: map.activeLayer, labels: copy ? map.labels.slice() : map.labels, struct: JSON.stringify(map.struct) });
+const snapState = copy => ({ lid: map.activeLayer, labels: copy ? map.labels.slice() : map.labels, struct: JSON.stringify(map.struct), hgt: map.hgt ? (copy ? map.hgt.slice() : map.hgt) : null });
 function restoreState(s){ selObj = null; const l = map.layers.find(x => x.id === s.lid); if (!l) return;
-  l.labels = s.labels; l.struct = JSON.parse(s.struct); setActiveLayer(l.id); renderLayer(l, 0, 0, map.cols, map.rows); drawStructView(); touchSave(); updUndo(); }
+  l.labels = s.labels; l.struct = JSON.parse(s.struct); if (s.hgt !== undefined && (s.hgt || map.hgt)){ map.hgt = s.hgt; drawReliefView(); } setActiveLayer(l.id); renderLayer(l, 0, 0, map.cols, map.rows); drawStructView(); touchSave(); updUndo(); }
 function pushUndo(){ undoStack.push(snapState(true)); if (undoStack.length > 60) undoStack.shift(); redoStack = []; updUndo(); }
 function undo(){ if (!undoStack.length) return; wallDraft = null; redoStack.push(snapState(false)); restoreState(undoStack.pop()); }
 function redo(){ if (!redoStack.length) return; wallDraft = null; undoStack.push(snapState(false)); restoreState(redoStack.pop()); }
@@ -2367,6 +2419,9 @@ view.addEventListener('pointerdown', e => {
       paintCells(Math.floor(cx), Math.floor(cy), Math.floor(cx) + 1, Math.floor(cy) + 1, tid); drag = { mode: 'cell', tid }; break;
     case 'rect': rectDrag = { a: [Math.floor(cx), Math.floor(cy)], b: [Math.floor(cx), Math.floor(cy)] }; drag = { mode: 'rect' }; drawOverlay(); break;
     case 'fill': pushUndo(); floodFill(cx, cy, tid); break;
+    case 'height': { const lvEl = $('hLevel');
+      if (e.shiftKey){ const H = ensureHgt(), c = Math.floor(cx), r = Math.floor(cy); if (c >= 0 && r >= 0 && c < map.cols && r < map.rows){ lvEl.value = H[r * map.cols + c]; $('hOut').textContent = heightLabel(+lvEl.value); } break; }
+      pushUndo(); paintHeight(cx, cy, brushRad(e), +lvEl.value); drag = { mode: 'hpaint', lx: cx, ly: cy }; break; }
     case 'pick': { const W = map.cols * R, x = Math.floor(cx * R), y = Math.floor(cy * R); if (x >= 0 && y >= 0 && x < W && y < map.rows * R){ let v = map.labels[y * W + x]; if (v === 255) for (const l of [...shownLayers(map)].reverse()){ if (l.labels[y * W + x] !== 255){ v = l.labels[y * W + x]; break; } } if (v !== 255){ selectTerrain(v); setTool('brush'); } } break; }
     case 'measure': { const p0 = isHex(map) ? pixelToHex(map, cx, cy) : [Math.floor(cx), Math.floor(cy)]; if (!p0) break; ruler = { a: p0, b: p0.slice() }; drag = { mode: 'measure' }; drawOverlay(); break; }
     case 'room': if ($('roomShape').value === 'poly'){ const p = snapPt(cx, cy, mods, roomDraft && roomDraft.pts[roomDraft.pts.length - 1]);
@@ -2418,6 +2473,8 @@ view.addEventListener('pointermove', e => {
   else $('stCell').textContent = (ix >= 0 && iy >= 0 && ix < map.cols && iy < map.rows) ? `Square ${ix + 1}, ${iy + 1}  ·  ${+(ix * map.ft).toFixed(2)}–${+((ix + 1) * map.ft).toFixed(2)} ${map.unit}, ${+(iy * map.ft).toFixed(2)}–${+((iy + 1) * map.ft).toFixed(2)} ${map.unit}` : '—';
   if (drag){
     if (drag.mode === 'pan'){ panX = drag.px + sx - drag.sx; panY = drag.py + sy - drag.sy; applyView(); return; }
+    if (drag.mode === 'hpaint'){ const rad = brushRad(e), dist = Math.hypot(cx - drag.lx, cy - drag.ly), steps = Math.max(1, Math.ceil(dist / Math.max(.2, rad * .4)));
+      for (let i = 1; i <= steps; i++) paintHeight(drag.lx + (cx - drag.lx) * i / steps, drag.ly + (cy - drag.ly) * i / steps, rad, +$('hLevel').value); drag.lx = cx; drag.ly = cy; }
     if (drag.mode === 'paint'){
       const rad = brushRad(e), dist = Math.hypot(cx - drag.lx, cy - drag.ly), steps = Math.max(1, Math.ceil(dist / Math.max(0.05, rad * 0.35)));
       for (let i = 1; i <= steps; i++) paintCircle(drag.lx + (cx - drag.lx) * i / steps, drag.ly + (cy - drag.ly) * i / steps, rad, drag.tid);
@@ -2476,14 +2533,14 @@ view.addEventListener('wheel', e => {
 }, { passive: false });
 
 /* ---------- UI: tools, terrains, settings ---------- */
-const TOOL_NAMES = { brush: 'Terrain brush', cell: 'Cell paint', rect: 'Rectangle fill', fill: 'Flood fill', eraser: 'Eraser', pick: 'Picker', measure: 'Ruler', pan: 'Pan',
+const TOOL_NAMES = { height: 'Ground height — paint with the brush size · 5 ft a step · drops of 10 ft or more become cliffs · Shift-click picks a height', brush: 'Terrain brush', cell: 'Cell paint', rect: 'Rectangle fill', fill: 'Flood fill', eraser: 'Eraser', pick: 'Picker', measure: 'Ruler', pan: 'Pan',
   room: 'Room — rectangle: drag · polygon: click corners, click the first one (or Enter) to close · round: drag from the centre · floor uses the selected terrain',
   wall: 'Wall — click corners; click the last point again, right-click or Esc to finish · Shift: straight/45° · Alt: quarter-square snap',
   door: 'Door — click a square edge; clicking an existing door replaces it',
   roof: 'Roof — drag over a building; hide the layer to see inside',
   label: 'Label — click to add (numbers become room badges), click a label to edit, drag to move · labels export only on the DM map unless you tick Include labels',
   stamp: 'Place object — tap to place · drag an object that is already there to move it · , and . rotate', scatter: 'Scatter — paint objects with the brush size and density', select: 'Select & move — drag any object, label, roof or stairs (on any visible layer) · arrows nudge (Shift: 1 square) · Del delete · , . rotate · - = resize · Ctrl+D copy', stairs: 'Stairs — drag in the direction they go down', xstruct: 'Remove — click or drag over walls, doors, stairs' };
-function setTool(t){ setTimeout(updateLightRow, 0); if (t !== 'wall') wallDraft = null; if (t !== 'room') roomDraft = null; if (t !== 'select') selObj = null; tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); $('stTool').textContent = TOOL_NAMES[t]; if (t !== 'measure') ruler = null; view.style.cursor = t === 'pan' ? 'grab' : ''; drawOverlay(); }
+function setTool(t){ setTimeout(updateLightRow, 0); $('heightRow').style.display = t === 'height' ? '' : 'none'; if (t !== 'wall') wallDraft = null; if (t !== 'room') roomDraft = null; if (t !== 'select') selObj = null; tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); $('stTool').textContent = TOOL_NAMES[t]; if (t !== 'measure') ruler = null; view.style.cursor = t === 'pan' ? 'grab' : ''; drawOverlay(); }
 document.querySelectorAll('#tools button').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 
 function buildTerrainPanel(){
@@ -2548,7 +2605,7 @@ function buildLayerPanel(){
     d.innerHTML = `<input type="checkbox" ${l.visible ? 'checked' : ''} title="Show / hide"><span class="nm"></span><span class="ctl">${base ? '' : '<button data-a="up" title="Move up">▲</button><button data-a="dn" title="Move down">▼</button><button data-a="dm" title="DM only">DM</button><button data-a="del" title="Delete layer">×</button>'}<button data-a="ren" title="Rename">✎</button></span>${base ? '' : `<input type="range" min="0.1" max="1" step="0.05" value="${l.opacity}" title="Opacity">`}`;
     d.querySelector('.nm').textContent = l.name; if (l.dm){ const sm = document.createElement('small'); sm.textContent = 'DM only'; d.querySelector('.nm').appendChild(sm); }
     d.onclick = ev => { if (ev.target.closest('input,button')) return; setActiveLayer(l.id); };
-    d.querySelector('input[type=checkbox]').onchange = ev => { l.visible = ev.target.checked; syncLayerDOM(); drawStructView(); touchSave(); };
+    d.querySelector('input[type=checkbox]').onchange = ev => { l.visible = ev.target.checked; syncLayerDOM(); drawStructView(); drawReliefView(); touchSave(); };
     const rg = d.querySelector('input[type=range]'); if (rg) rg.oninput = () => { l.opacity = +rg.value; syncLayerDOM(); touchSave(); };
     d.querySelectorAll('button').forEach(b => b.onclick = () => { const a = b.dataset.a, L = map.layers;
       if (a === 'ren'){ const n = prompt('Layer name', l.name); if (n && n.trim()){ l.name = n.trim().slice(0, 40); buildLayerPanel(); touchSave(); } return; }
@@ -2613,7 +2670,7 @@ $('showSecret').onchange = drawStructView;
 $('objSize').oninput = () => { syncOutputs(); drawOverlay(); }; $('density').oninput = syncOutputs;
 $('tintObj').onchange = drawOverlay;
 $('showLabels').onchange = drawStructView;
-function setTod(t){ map.tod = t; setSun(t); drawStructView(); touchSave(); }
+function setTod(t){ map.tod = t; setSun(t); drawStructView(); drawReliefView(); touchSave(); }
 function toggleNight(){ setTod(TOD_ORDER[(TOD_ORDER.indexOf(map.tod || 'day') + 1) % TOD_ORDER.length]); }
 $('todSel').onchange = () => setTod($('todSel').value);
 function applySeason(){ SEASON = map.season || 'summer'; $('seasonSel').value = SEASON; renderAllLayers(); drawStructView(); buildStampPanel(); }
@@ -2675,7 +2732,7 @@ function updateInfo(){
 }
 
 /* ---------- keyboard ---------- */
-const KEYS = { b: 'brush', c: 'cell', r: 'rect', f: 'fill', e: 'eraser', i: 'pick', m: 'measure', h: 'pan', w: 'wall', o: 'room', d: 'door', t: 'stairs', x: 'xstruct', s: 'stamp', a: 'scatter', v: 'select', l: 'label', u: 'roof' };
+const KEYS = { b: 'brush', c: 'cell', r: 'rect', f: 'fill', e: 'eraser', i: 'pick', m: 'measure', h: 'pan', w: 'wall', o: 'room', d: 'door', t: 'stairs', x: 'xstruct', s: 'stamp', a: 'scatter', v: 'select', l: 'label', u: 'roof', g: 'height' };
 addEventListener('keydown', e => {
   if (e.target.matches('input[type=text],input[type=number],input.name,select') || document.querySelector('dialog[open]')) return;
   const k = e.key.toLowerCase();
@@ -2720,9 +2777,9 @@ function lsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
 function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
 
 function thumbnail(){ const w = 220, h = Math.max(1, Math.round(w * map.rows / map.cols)); const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
-  for (const l of map.layers) if (l.visible){ const lc = layerCanvases(l); x.globalAlpha = l.opacity; x.drawImage(lc.t, 0, 0, w, h); x.drawImage(lc.s, 0, 0, w, h); } x.globalAlpha = 1; return c.toDataURL('image/jpeg', .75); }
+  for (const l of map.layers) if (l.visible){ const lc = layerCanvases(l); x.globalAlpha = l.opacity; x.drawImage(lc.t, 0, 0, w, h); if (l === map.layers[0]) x.drawImage(reliefCanvas, 0, 0, w, h); x.drawImage(lc.s, 0, 0, w, h); } x.globalAlpha = 1; return c.toDataURL('image/jpeg', .75); }
 const extraLayers = m => (m.layers || []).slice(1).map(l => ({ id: l.id, name: l.name, visible: l.visible, opacity: l.opacity, dm: l.dm, labels: l.labels, struct: l.struct }));
-function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
+function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', hgt: hasHeights(m) ? m.hgt.slice() : null, created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
 let saveTimer = 0;
 function touchSave(){ dirtySave = true; $('stSave').textContent = 'Unsaved changes…'; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500); }
 async function saveNow(){
@@ -2738,7 +2795,7 @@ function migrateCustom(m, oldBase){
   if (m.base >= oldBase && m.base < oldBase + n) m.base = CUSTOM_BASE + m.base - oldBase;
   return m;
 }
-function fromRecord0(r){ return gridInit({ rules: r.rules === '5e' ? '5e' : '35', showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), created: r.created, thumb: r.thumb }); }
+function fromRecord0(r){ return gridInit({ rules: r.rules === '5e' ? '5e' : '35', showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), hgt: r.hgt && r.hgt.length === r.cols * r.rows ? new Int8Array(r.hgt) : null, created: r.created, thumb: r.thumb }); }
 
 function openMap(m){
   map = gridInit(m); if (!map.layers) ensureLayers(map); map.custom = map.custom || []; LV.forEach(c => { c.t.remove(); c.s.remove(); }); LV.clear();
@@ -2817,7 +2874,7 @@ function cleanStruct(o){ const s = emptyStruct(); if (!o) return s; const num = 
   for (const r of o.roofs || []) s.roofs.push({ x0: num(r.x0), y0: num(r.y0), x1: num(r.x1), y1: num(r.y1), mat: ROOFMATS[r.mat] ? r.mat : 'tiles', ...(/^#[0-9a-f]{6}$/i.test(r.c || '') ? { c: r.c } : {}) });
   for (const t of o.stairs || []) s.stairs.push({ x0: num(t.x0), y0: num(t.y0), x1: num(t.x1), y1: num(t.y1), dir: 'nsew'.includes(t.dir) && t.dir ? t.dir : 's' });
   return s; }
-function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)),
+function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)), hgt: hasHeights(m) ? u8ToB64(new Uint8Array(m.hgt.buffer.slice(0))) : undefined,
   layers: extraLayers(m).map(l => ({ ...l, labels: u8ToB64(new Uint8Array(l.labels)) })) }; }
 function parseProject(o){
   if (!o || o.format !== 'map-drawing/1') throw new Error('Not a Map Drawing project file');
@@ -2833,7 +2890,7 @@ function parseProject(o){
   const base = Math.max(0, TERRAINS.findIndex((t, i) => i < BUILTIN && t.key === o.base));
   const grid = ['square', 'hexflat', 'hexpointy'].includes(o.grid) ? o.grid : 'square';
   if (grid !== 'square'){ const e = hexExtent(grid, o.hcols | 0, o.hrows | 0); if (!(o.hcols > 0 && o.hrows > 0) || Math.ceil(e.w - 1e-6) !== cols || Math.ceil(e.h - 1e-6) !== rows) throw new Error('Hex grid size does not match the map'); }
-  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, rules: o.rules === '5e' ? '5e' : '35', _extras: extras });
+  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, rules: o.rules === '5e' ? '5e' : '35', hgt: (() => { try { const b = o.hgt && b64ToU8(o.hgt); return b && b.length === cols * rows ? new Int8Array(b.buffer.slice(0)).map(v => clamp(v, H_MIN, H_MAX)) : null; } catch (e) { return null; } })(), _extras: extras });
 }
 $('bImport').onclick = () => $('fileIn').click();
 $('fileIn').onchange = async () => {
