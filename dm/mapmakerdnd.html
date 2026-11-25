@@ -222,6 +222,7 @@ code{background:#12141a;padding:0 3px;border-radius:3px}
   <button id="worldBtn" class="gmonly" title="hex world map for the campaign: terrain, points of interest, links to battle maps">🗺 World</button>
   <button id="publishBtn" class="gmonly" title="publish the shared area to your site for the players">🌐 Publish</button>
   <button id="discordBtn" class="gmonly">💬 Discord</button>
+  <button id="obsBtn" class="gmonly" title="save this map, or the world map, as notes with images in your Obsidian vault">📓 Obsidian</button>
   <button id="dRoundQuick" class="gmonly" title="post map + log to Discord">📤 Round</button>
   <input id="file" type="file" accept=".json" style="display:none">
   <input id="imgfile" type="file" accept="image/*" style="display:none">
@@ -277,7 +278,7 @@ code{background:#12141a;padding:0 3px;border-radius:3px}
     <span id="wHover" class="hint"></span>
     <span style="flex:1"></span>
     <button id="wPub" title="what the players see: share on Discord or the site">🌐 Players</button>
-    <button id="wExpJson" title="export this campaign's world as JSON">JSON ⬇</button><button id="wImpJson" title="import a world JSON">JSON ⬆</button><button id="wExpPng" title="export the whole map as an image">PNG ⬇</button>
+    <button id="wExpJson" title="export this campaign's world as JSON">JSON ⬇</button><button id="wImpJson" title="import a world JSON">JSON ⬆</button><button id="wExpPng" title="export the whole map as an image">PNG ⬇</button><button id="wObs" title="save the world map as a note in your Obsidian vault (set up under 📓 Obsidian in the main toolbar; downloads a zip if no API key is set)">📓</button>
     <button id="wClose">✕ Close</button>
   </div>
   <div id="wbody">
@@ -599,6 +600,20 @@ Ctrl+B bold, Ctrl+I italic, Ctrl+U underline."></textarea>
     <small class="hint">Every campaign has its own webhook, so a map always posts to its campaign's channel. Webhooks are stored only in this browser, never in JSON exports or the player link. Posted maps are cropped to the focused area.</small>
   </div>
 </div></div>
+<div id="omodal" class="modal"><div class="mbox" style="width:560px">
+  <header><b>📓 Save to Obsidian</b><span style="flex:1"></span><button id="oClose">✕</button></header>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:10px;overflow:auto">
+    <small class="hint">Install the <b>Local REST API</b> community plugin in Obsidian, switch on <b>Enable non-encrypted (HTTP) server</b> in its settings, and paste its API key below. Obsidian must be open. Without the plugin, use the zip buttons and unpack the file into your vault.</small>
+    <label><span class="stat">Plugin address</span><input id="oUrl" type="text" placeholder="http://127.0.0.1:27123" style="width:100%"></label>
+    <label><span class="stat">API key (Obsidian → Settings → Local REST API)</span><span class="srow"><input id="oKey" type="password" autocomplete="off" style="flex:1"><button id="oShow" class="ib">show</button></span></label>
+    <label><span class="stat">Folder in your vault (a sub-folder per campaign is added)</span><input id="oFolder" type="text" placeholder="D&amp;D" style="width:100%"></label>
+    <div class="srow"><button id="oTest">Test connection</button><span id="oRes" class="hint"></span></div>
+    <hr>
+    <div class="srow"><button id="oMap">📓 Save this map</button><button id="oWorld">📓 Save the world map</button></div>
+    <div class="srow"><button id="oZipMap">⬇ Zip: this map</button><button id="oZipWorld">⬇ Zip: world map</button></div>
+    <small class="hint">Each map becomes a note with its image, combatants and encounter notes. The world map becomes a note listing every place, linked to the notes of its battle maps. Saving again updates only the part between the <code>gct</code> comment markers, so anything you write around it in Obsidian is kept. The API key stays in this browser.</small>
+  </div>
+</div></div>
 <div id="smodal" class="modal"><div class="mbox" style="width:640px">
   <header><b>🌐 Publish to site</b><span style="flex:1"></span><button id="sClose">✕</button></header>
   <div style="padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto">
@@ -630,7 +645,7 @@ const idb={db:null,
   set(k,v){return new Promise(res=>{if(!idb.db){mem[k]=v;return res()}try{const t=idb.db.transaction('kv','readwrite').objectStore('kv').put(v,k);t.onsuccess=()=>res();t.onerror=()=>res()}catch(e){mem[k]=v;res()}})}
 };
 const CONDS=['blinded','confused','cowering','dazed','dazzled','dead','deafened','disabled','dying','entangled','exhausted','fatigued','flat-footed','grappled','helpless','invisible','nauseated','panicked','paralyzed','petrified','prone','shaken','sickened','stable','staggered','stunned','unconscious'];
-let st,settings={webhook:'',pSize:4,pLvl:1,site:{url:'',key:''},camps:{}};
+let st,settings={webhook:'',pSize:4,pLvl:1,site:{url:'',key:''},camps:{},obs:{url:'http://127.0.0.1:27123',key:'',folder:'D&D'}};
 // settings live in IndexedDB with a localStorage copy, so they survive when IndexedDB is unavailable
 function persistSettings(){const j=JSON.parse(JSON.stringify(settings));idb.set('settings',j);try{localStorage.setItem('gct_settings',JSON.stringify(j))}catch(e){}}
 // Discord webhooks belong to a campaign, so every map in a campaign posts to that campaign's channel
@@ -2169,10 +2184,7 @@ $('#wfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f
     if(m)hit=Object.keys(files).find(id=>files[id].name===m.name&&(files[id].campaign||'')===name)||Object.keys(files).find(id=>files[id].name===m.name&&(files[id].campaign||'')===m.campaign);
     if(hit){s.link=hit;relinked++}else lost++}
   worlds[name]=w;wSaveNow();wOpen(name);wMsg('imported'+(relinked?' · '+relinked+' map links re-matched by name':'')+(lost?' · '+lost+' links need relinking':''))};
-$('#wExpPng').onclick=()=>{const B=bounds();if(!B){wMsg('nothing to export yet');return}
-  const bw=B.x1-B.x0,bh=B.y1-B.y0,k=Math.min(1.2,3600/Math.max(bw,bh)),cvs=document.createElement('canvas');cvs.width=Math.ceil(bw*k);cvs.height=Math.ceil(bh*k);
-  wRender(cvs.getContext('2d'),{cx:(B.x0+B.x1)/2,cy:(B.y0+B.y1)/2,z:k},cvs.width,cvs.height,{noUI:true,noGrid:true});
-  cvs.toBlob(b=>download('world-'+safeName(W.camp)+'.png',b))};
+$('#wExpPng').onclick=async()=>{const b=await worldPngBlob();if(!b){wMsg('nothing to export yet');return}download('world-'+safeName(W.camp)+'.png',b)};
 
 /* ================= player-facing world: image + short snapshot, Discord and site ================= */
 function wBgReady(){return new Promise(res=>{const bg=W.w.bg;if(!bg)return res();bgImage(bg);const c=W.bgc;if(c.ok)return res();c.img.addEventListener('load',()=>res());c.img.addEventListener('error',()=>res());setTimeout(res,5000)})}
@@ -2222,9 +2234,89 @@ $('#wpPublish').onclick=async()=>{const b=$('#wpPublish'),res=$('#wpResult');b.d
     res.textContent=note;wpRefresh()}
   catch(e){res.textContent='✕ '+e.message}finally{b.disabled=!Object.keys(W.w.known).length}};
 
+/* ===== Obsidian export: notes + images into a vault via the Local REST API, or as a zip ===== */
+const OBS_A='<!-- gct:start -->',OBS_B='<!-- gct:end -->';
+const obsName=s=>String(s==null?'':s).replace(/[\\/:*?"<>|#^\[\]]/g,'').replace(/\s+/g,' ').trim()||'untitled';
+const obsYq=s=>String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+const obsCell=s=>String(s==null?'':s).replace(/\|/g,'\\|').replace(/\r?\n/g,' ');
+function obsDir(camp){const f=String(settings.obs.folder||'').split('/').map(obsName).filter(x=>x!=='untitled');return f.concat([obsName(camp||'No campaign')]).join('/')}
+function worldPngBlob(){return new Promise(res=>{const B=bounds();if(!B)return res(null);
+  const bw=B.x1-B.x0,bh=B.y1-B.y0,k=Math.min(1.2,3600/Math.max(bw,bh)),cvs=document.createElement('canvas');cvs.width=Math.ceil(bw*k);cvs.height=Math.ceil(bh*k);
+  wRender(cvs.getContext('2d'),{cx:(B.x0+B.x1)/2,cy:(B.y0+B.y1)/2,z:k},cvs.width,cvs.height,{noUI:true,noGrid:true});cvs.toBlob(res,'image/png')})}
+function obsWorldName(camp){return 'World - '+obsName(camp)}
+function obsBlock(inner){return OBS_A+'\n'+inner.trim()+'\n'+OBS_B}
+async function obsBundleMap(){
+  const camp=st.campaign||'',name=obsName(st.title||'Encounter'),dir=obsDir(camp),day=new Date().toISOString().slice(0,10);
+  const png=await new Promise(r=>makePng().toBlob(r,'image/png'));
+  let b='# '+(st.title||'Encounter')+'\n\n![['+name+'.png]]\n\n*The image shows the player view.*\n';
+  const w=worlds[camp];let hub='';
+  if(w&&st.fileId)for(const k in w.sites){const s=w.sites[k];if(s.link===st.fileId){const[q,r]=unk(k);hub='Place on the world map: **'+(s.name||'unnamed')+'** ('+offLbl(q,r)+') in [['+obsWorldName(camp)+']]\n'}}
+  if(hub)b+='\n'+hub;
+  const tk=sorted();
+  if(tk.length){b+='\n## Combatants\n\n| Name | Side | Init | AC | HP |\n| --- | --- | --- | --- | --- |\n'+tk.map(t=>'| '+obsCell(t.name)+' | '+(t.pc?'PC':'enemy')+' | '+(t.init==null?'':t.init)+' | '+(t.ac==null?'':t.ac)+' | '+(t.maxHp?t.hp+'/'+t.maxHp:'')+' |').join('\n')+'\n'}
+  if((st.notes||'').trim())b+='\n## Encounter notes\n\n'+st.notes.trim().replace(/^(#{1,6}) /gm,'#$1 ')+'\n';
+  for(const r of (st.rooms||[]))if((r.notes||'').trim()||r.name)b+='\n## Room '+r.n+(r.name?': '+r.name:'')+'\n\n'+(r.notes||'').trim().replace(/^(#{1,6}) /gm,'#$1 ')+'\n';
+  const fm='---\ntype: battle-map\ncampaign: "'+obsYq(camp)+'"\nmap: "'+obsYq(name)+'"\ngrid: '+st.cols+'x'+st.rows+'\nupdated: '+day+'\ntags: [dnd, battle-map]\n---\n\n';
+  return [{path:dir+'/'+name+'.png',type:'image/png',blob:png},{path:dir+'/'+name+'.md',type:'text/markdown',block:obsBlock(b),front:fm}]}
+async function obsBundleWorld(){
+  const camp=W.camp||st.campaign||'',w=worlds[camp];if(!w)throw new Error('no world map for this campaign yet');
+  const dir=obsDir(camp),name=obsWorldName(camp),png=await worldPngBlob(),day=new Date().toISOString().slice(0,10);
+  let b='# World map: '+camp+'\n\n'+(png?'![['+name+'.png]]\n\n':'');
+  if(w.party){const[q,r]=unk(w.party);b+='Party at **'+offLbl(q,r)+'**. Players know '+Object.keys(w.known||{}).length+' hexes.\n'}
+  const rows=Object.keys(w.sites||{}).map(k=>{const[q,r]=unk(k);return{k,s:w.sites[k],c:offLbl(q,r)}}).sort((a,b)=>a.c.localeCompare(b.c));
+  if(rows.length)b+='\n## Places\n\n| Hex | Place | Type | Players see it | Players are told | DM notes | Battle map |\n| --- | --- | --- | --- | --- | --- | --- |\n'+rows.map(({k,s,c})=>{
+    const f=s.link&&files[s.link],seen=!!(w.known||{})[k]&&s.show!==false;
+    return '| '+c+' | '+obsCell(s.name)+' | '+obsCell((SITE_BY[s.type]||SITE_BY['']).n)+' | '+(seen?'yes':'no')+' | '+obsCell(s.pubName?s.pubName+': '+(s.pub||''):(s.pub||''))+' | '+obsCell(s.dm)+' | '+(f?'[['+obsName(f.name)+']]':'')+' |'}).join('\n')+'\n';
+  const fm='---\ntype: world-map\ncampaign: "'+obsYq(camp)+'"\nupdated: '+day+'\ntags: [dnd, world-map]\n---\n\n';
+  const out=[];if(png)out.push({path:dir+'/'+name+'.png',type:'image/png',blob:png});
+  out.push({path:dir+'/'+name+'.md',type:'text/markdown',block:obsBlock(b),front:fm});return out}
+function obsUrl(p){return String(settings.obs.url||'').replace(/\/+$/,'')+'/vault/'+p.split('/').map(encodeURIComponent).join('/')}
+async function obsFetch(url,opt){const o=settings.obs;opt.headers=Object.assign({Authorization:'Bearer '+o.key},opt.headers||{});
+  let r;try{r=await fetch(url,opt)}catch(e){throw new Error('cannot reach Obsidian at '+o.url+' (is it open, and is the HTTP server switched on in the plugin?)')}
+  if(r.status===401||r.status===403)throw new Error('Obsidian rejected the API key');return r}
+async function obsPutAll(files){
+  for(const f of files){
+    if(f.blob){const r=await obsFetch(obsUrl(f.path),{method:'PUT',headers:{'Content-Type':f.type},body:f.blob});if(!r.ok)throw new Error('could not write '+f.path+' ('+r.status+')');continue}
+    // note: replace only our own marked block, keep everything the DM wrote around it
+    const g=await obsFetch(obsUrl(f.path),{method:'GET',headers:{Accept:'text/markdown'}});let txt;
+    if(g.status===404)txt=f.front+f.block+'\n';
+    else if(g.ok){const old=await g.text(),i=old.indexOf(OBS_A),j=old.indexOf(OBS_B);
+      txt=(i>=0&&j>i)?old.slice(0,i)+f.block+old.slice(j+OBS_B.length):old.replace(/\s*$/,'')+'\n\n'+f.block+'\n'}
+    else throw new Error('could not read '+f.path+' ('+g.status+')');
+    const r=await obsFetch(obsUrl(f.path),{method:'PUT',headers:{'Content-Type':'text/markdown'},body:txt});if(!r.ok)throw new Error('could not write '+f.path+' ('+r.status+')')}}
+const OBS_CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function obsCrc(u){let c=-1;for(let i=0;i<u.length;i++)c=OBS_CRC[(c^u[i])&255]^(c>>>8);return(c^-1)>>>0}
+function obsZip(list){ // store-only zip: [{name,data:Uint8Array}]
+  const te=new TextEncoder(),parts=[],cen=[];let off=0;const d=new Date(),dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(),tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  for(const f of list){const nm=te.encode(f.name),crc=obsCrc(f.data),h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);h.setUint16(10,tm,true);h.setUint16(12,dt,true);h.setUint32(14,crc,true);h.setUint32(18,f.data.length,true);h.setUint32(22,f.data.length,true);h.setUint16(26,nm.length,true);h.setUint16(28,0,true);
+    parts.push(h.buffer,nm,f.data);
+    const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);c.setUint16(12,tm,true);c.setUint16(14,dt,true);c.setUint32(16,crc,true);c.setUint32(20,f.data.length,true);c.setUint32(24,f.data.length,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+    cen.push(c.buffer,nm);off+=30+nm.length+f.data.length}
+  let cs=0;for(const p of cen)cs+=p.byteLength||p.length;const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,list.length,true);e.setUint16(10,list.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  return new Blob(parts.concat(cen,[e.buffer]),{type:'application/zip'})}
+async function obsZipDownload(files,zname){const list=[];for(const f of files){const data=f.blob?new Uint8Array(await f.blob.arrayBuffer()):new TextEncoder().encode(f.front+f.block+'\n');list.push({name:f.path,data})}download(zname+'.zip',obsZip(list))}
+async function obsRun(kind,mode,say){
+  try{const o=settings.obs;if(mode==='vault'&&!o.key){say('set the Obsidian API key first (📓 Obsidian in the toolbar)');return}
+    say(mode==='vault'?'saving to Obsidian…':'building zip…');
+    const files=kind==='world'?await obsBundleWorld():await obsBundleMap();
+    if(mode==='vault'){await obsPutAll(files);say('✓ saved to Obsidian: '+files[files.length-1].path)}
+    else{await obsZipDownload(files,obsName(kind==='world'?obsWorldName(W.camp||st.campaign):(st.title||'map')));say('✓ zip downloaded: unpack it into your vault')}
+  }catch(e){say('✕ '+e.message)}}
+function obsSaveFields(){const o=settings.obs;o.url=($('#oUrl').value||'').trim()||'http://127.0.0.1:27123';o.key=($('#oKey').value||'').trim();o.folder=($('#oFolder').value||'').trim();persistSettings()}
+function obsOpen(){const o=settings.obs;$('#oUrl').value=o.url;$('#oKey').value=o.key;$('#oFolder').value=o.folder;$('#oRes').textContent='';$('#oWorld').disabled=$('#oZipWorld').disabled=!worlds[st.campaign||''];$('#omodal').style.display='flex'}
+$('#obsBtn').onclick=obsOpen;
+$('#oClose').onclick=()=>{obsSaveFields();$('#omodal').style.display='none'};$('#omodal').onclick=e=>{if(e.target.id==='omodal'){obsSaveFields();$('#omodal').style.display='none'}};
+$('#oShow').onclick=()=>{const i=$('#oKey');i.type=i.type==='password'?'text':'password'};
+const oSay=t=>{$('#oRes').textContent=t};
+$('#oTest').onclick=async()=>{obsSaveFields();try{const r=await obsFetch(String(settings.obs.url).replace(/\/+$/,'')+'/',{method:'GET'});const j=await r.json().catch(()=>({}));oSay(r.ok?(j.authenticated===false?'✕ reachable, but the API key was not accepted':'✓ connected to Obsidian'):'✕ unexpected answer ('+r.status+')')}catch(e){oSay('✕ '+e.message)}};
+$('#oMap').onclick=()=>{obsSaveFields();obsRun('map','vault',oSay)};$('#oWorld').onclick=()=>{obsSaveFields();obsRun('world','vault',oSay)};
+$('#oZipMap').onclick=()=>{obsSaveFields();obsRun('map','zip',oSay)};$('#oZipWorld').onclick=()=>{obsSaveFields();obsRun('world','zip',oSay)};
+$('#wObs').onclick=()=>obsRun('world',settings.obs.key?'vault':'zip',wMsg);
+
 (async function init(){await idb.open();let s=await idb.get('state'),l=await idb.get('lib'),f=await idb.get('files'),sg=await idb.get('settings');if(!sg){try{sg=JSON.parse(localStorage.getItem('gct_settings')||'null')}catch(e){}}
   try{if(!s&&localStorage.getItem('gct_state'))s=JSON.parse(localStorage.getItem('gct_state'));if(!l&&localStorage.getItem('gct_lib'))l=JSON.parse(localStorage.getItem('gct_lib'));if(!f&&localStorage.getItem('gct_files'))f=JSON.parse(localStorage.getItem('gct_files'))}catch(e){}
-  lib=l||[];files=f||{};if(sg)settings=Object.assign(settings,sg);settings.site=Object.assign({url:'',key:''},settings.site||{});settings.camps=settings.camps||{};aoeSizes();await loadWorlds();
+  lib=l||[];files=f||{};if(sg)settings=Object.assign(settings,sg);settings.site=Object.assign({url:'',key:''},settings.site||{});settings.obs=Object.assign({url:'http://127.0.0.1:27123',key:'',folder:'D&D'},settings.obs||{});settings.camps=settings.camps||{};aoeSizes();await loadWorlds();
   const sc=await idb.get('sects');if(sc){ui.col=new Set(sc.col||[]);ui.max=sc.max||null}
   applySects();
   tpls=(await idb.get('tpls'))||[];renderTpl();
