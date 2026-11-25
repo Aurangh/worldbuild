@@ -26,10 +26,10 @@ button:disabled{opacity:.4;cursor:default}
 #tools button kbd{position:absolute;right:2px;bottom:1px;font-size:9px;color:var(--dim);font-family:inherit}
 #tools hr{width:30px;border:0;border-top:1px solid var(--line);margin:4px 0}
 #view{position:relative;overflow:hidden;background:#0c0d10 radial-gradient(circle at 50% 50%,#16181d,#0b0c0f);cursor:crosshair;touch-action:none}
-#mapCanvas,#structCanvas,.lcv{position:absolute;left:0;top:0;transform-origin:0 0}
+#mapCanvas,#reliefCanvas,#structCanvas,.lcv{position:absolute;left:0;top:0;transform-origin:0 0}
 .lcv{pointer-events:none}
 #mapCanvas{box-shadow:0 0 0 1px #000,0 10px 40px rgba(0,0,0,.6)}
-#structCanvas,#nightCanvas,#glowCanvas,#labelCanvas{pointer-events:none}
+#reliefCanvas,#structCanvas,#nightCanvas,#glowCanvas,#labelCanvas{pointer-events:none}
 #nightCanvas,#glowCanvas,#labelCanvas{position:absolute;left:0;top:0;transform-origin:0 0;display:none}
 #nightCanvas{mix-blend-mode:multiply}#glowCanvas{mix-blend-mode:screen}
 #view.lit #nightCanvas,#view.lit #glowCanvas{display:block}#labelCanvas{display:block}
@@ -142,6 +142,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <button data-tool="fill" title="Flood fill (F)"><svg viewBox="0 0 24 24"><path d="M5 11l7-7 7 7-7 7z"/><path d="M19 15c1 1.5 1.5 2.5 1.5 3.2a1.5 1.5 0 0 1-3 0c0-.7.5-1.7 1.5-3.2z"/></svg><kbd>F</kbd></button>
     <button data-tool="eraser" title="Eraser – paints base terrain (E)"><svg viewBox="0 0 24 24"><path d="M8 20h12"/><path d="M4 15l9-9 6 6-7 7H8z"/></svg><kbd>E</kbd></button>
     <button data-tool="pick" title="Terrain picker (I)"><svg viewBox="0 0 24 24"><path d="M14 4l6 6-2 2-6-6z"/><path d="M13 9l-8 8v3h3l8-8"/></svg><kbd>I</kbd></button>
+    <button data-tool="height" title="Ground height (G) — paint raised or sunken ground, 5 ft a step · Shift-click picks a height"><svg viewBox="0 0 24 24"><path d="M2 19l6-9 4 5 3-4 7 8z"/><path d="M8 10l1.5 2.5"/></svg><kbd>G</kbd></button>
     <hr>
     <button data-tool="wall" title="Wall – click corner to corner, click last point or Esc to finish (W)"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="M3 12h18M9 6v6M15 12v6"/></svg><kbd>W</kbd></button>
     <button data-tool="room" title="Room – drag: floor in current terrain + walls (O)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" stroke-width="3"/><rect x="8" y="8" width="8" height="8" stroke-dasharray="2 2"/></svg><kbd>O</kbd></button>
@@ -153,7 +154,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <button data-tool="stamp" title="Place object (S) · , and . rotate"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="6"/><path d="M12 16v5M8 21h8"/></svg><kbd>S</kbd></button>
     <button data-tool="scatter" title="Scatter brush (A)"><svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="2.5"/><circle cx="16" cy="6" r="2"/><circle cx="12" cy="14" r="3"/><circle cx="18" cy="17" r="2"/><circle cx="6" cy="18" r="1.6"/></svg><kbd>A</kbd></button>
     <button data-tool="label" title="Label – click to add, click a label to edit, drag to move (L). A number makes a room badge"><svg viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg><kbd>L</kbd></button>
-    <button data-tool="select" title="Select / move object (V) · Del deletes · , . rotate · - = resize"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg><kbd>V</kbd></button>
+    <button data-tool="select" title="Select &amp; move (V) — drag objects, labels, roofs or stairs · arrows nudge · Del deletes · , . rotate · - = resize"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg><kbd>V</kbd></button>
     <hr>
     <button data-tool="measure" title="Ruler (M)"><svg viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg><kbd>M</kbd></button>
     <button data-tool="pan" title="Pan (H, or hold Space / right-drag)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg><kbd>H</kbd></button>
@@ -161,6 +162,7 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
 
   <main id="view">
     <canvas id="mapCanvas"></canvas>
+    <canvas id="reliefCanvas"></canvas>
     <canvas id="structCanvas"></canvas>
     <canvas id="nightCanvas"></canvas>
     <canvas id="glowCanvas"></canvas>
@@ -194,9 +196,11 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <h3>Brush</h3>
     <div class="row"><label for="brushSize">Size (squares)</label><output id="brushOut"></output></div>
     <input type="range" id="brushSize" min="0.25" max="8" step="0.25" value="1.5">
+    <div id="heightRow" style="display:none"><div class="row"><label for="hLevel">Ground height</label><output id="hOut">Ground level</output></div>
+    <input type="range" id="hLevel" min="-3" max="6" step="1" value="1"></div>
 
     <h3>Objects</h3>
-    <div class="tabs" id="stampTabs"><button data-cat="nature" class="on">Nature</button><button data-cat="ruins">Ruins</button><button data-cat="dungeon">Dungeon</button><button data-cat="furniture">Furniture</button><button data-cat="camp">Camp</button><button data-cat="world">World map</button><button data-cat="japan">Japan</button><button data-cat="cave">Caverns</button><button data-cat="jungle">Jungle</button><button data-cat="ship">Ships</button></div>
+    <div class="tabs" id="stampTabs"><button data-cat="nature" class="on">Nature</button><button data-cat="ruins">Ruins</button><button data-cat="dungeon">Dungeon</button><button data-cat="furniture">Furniture</button><button data-cat="camp">Camp</button><button data-cat="world">World map</button><button data-cat="japan">Japan</button><button data-cat="cave">Caverns</button><button data-cat="jungle">Jungle</button><button data-cat="ship">Ships</button><button data-cat="steam">Steampunk</button></div>
     <div id="stamps"></div>
     <div class="row"><label for="objSize">Object size</label><output id="objSizeOut"></output></div>
     <input type="range" id="objSize" min="0.4" max="2.5" step="0.05" value="1">
@@ -208,10 +212,10 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <input type="range" id="density" min="0.1" max="1.5" step="0.05" value="0.7">
 
     <h3>Structure</h3>
-    <div class="row"><label for="wallMat">Wall material</label><select id="wallMat"><option value="stone">Stone</option><option value="wood">Wood</option><option value="cave">Rough cave</option><option value="hull">Ship hull (tarred)</option><option value="bamboo">Bamboo</option></select></div>
+    <div class="row"><label for="wallMat">Wall material</label><select id="wallMat"><option value="stone">Stone</option><option value="wood">Wood</option><option value="cave">Rough cave</option><option value="hull">Ship hull (tarred)</option><option value="bamboo">Bamboo</option><option value="brasswall">Brass plate</option><option value="ironwall">Riveted iron</option></select></div>
     <div class="row"><label for="wallTh">Wall thickness</label><select id="wallTh"><option value="0.15">Thin</option><option value="0.25" selected>Normal</option><option value="0.4">Thick</option></select></div>
     <div class="row"><label for="roomShape">Room shape</label><select id="roomShape"><option value="rect">Rectangle (drag)</option><option value="poly">Polygon (click corners)</option><option value="circle">Round (drag radius)</option></select></div>
-    <div class="row"><label for="roofMat">Roof</label><select id="roofMat"><option value="tiles">Clay tiles</option><option value="slate">Slate</option><option value="thatch">Thatch</option><option value="shingles">Wood shingles</option><option value="palm">Palm thatch</option><optgroup label="Japan"><option value="kawara">Kawara tiles</option><option value="hiwada">Cypress bark</option><option value="copper">Copper (verdigris)</option></optgroup></select></div>
+    <div class="row"><label for="roofMat">Roof</label><select id="roofMat"><option value="tiles">Clay tiles</option><option value="slate">Slate</option><option value="thatch">Thatch</option><option value="shingles">Wood shingles</option><option value="palm">Palm thatch</option><optgroup label="Japan"><option value="kawara">Kawara tiles</option><option value="hiwada">Cypress bark</option><option value="copper">Copper (verdigris)</option></optgroup><optgroup label="Steampunk"><option value="ironsheet">Corrugated iron</option><option value="copper">Copper (verdigris)</option></optgroup></select></div>
     <div class="row"><label for="doorType">Door type</label><select id="doorType"><option value="door">Door</option><option value="double">Double door</option><option value="secret">Secret door</option><option value="portcullis">Portcullis</option><option value="window">Window</option><option value="opening">Open archway</option><option value="shoji">Shoji screen</option></select></div>
     <div class="row"><label for="showSecret">Show secret doors</label><input type="checkbox" id="showSecret" checked></div>
 
@@ -396,9 +400,14 @@ const TERRAINS = [
   { key:'deck',     name:'Ship deck',     prio:9.3, soft:.02, ppc:3, gen:'wood', ramp:['#2e1c0c','#4a2f16','#664220','#82552b','#9c6a38','#b58148'], edge:{ color:'rgba(10,5,2,.75)', w:.08 } },
   { key:'pier',     name:'Pier boards',   prio:9.25, soft:.02, gen:'pier', ramp:['#121212','#353431','#504d48','#6a665f','#848077','#a09a90'], edge:{ color:'rgba(5,5,5,.7)', w:.08 } },
   { key:'quay',     name:'Quay stone',    prio:8.5, soft:.05, gen:'quay', ramp:['#22242a','#36383d','#4a4d52','#606368','#777a7f','#919499'], edge:{ color:'rgba(5,5,8,.65)', w:.1 } },
+  // Steampunk pack
+  { key:'brass',    name:'Brass plate',   prio:9.2, soft:.02, gen:'plate', ramp:['#1c1206','#3e2a0e','#6a4a18','#9a7228','#c49a40','#ead07a'], edge:{ color:'rgba(8,5,2,.75)', w:.08 } },
+  { key:'ironplate',name:'Riveted iron',  prio:9.15, soft:.02, gen:'plate', ramp:['#0e1013','#22262c','#363c44','#4c535d','#646c77','#848c97'], edge:{ color:'rgba(4,4,6,.75)', w:.08 } },
+  { key:'grating',  name:'Iron grating',  prio:9.1, soft:.02, gen:'grate', ramp:['#060708','#1c1e22','#33363c','#4a4e55','#62666e','#80848c'], edge:{ color:'rgba(4,4,6,.75)', w:.08 } },
+  { key:'soot',     name:'Sooty cobbles', prio:8.4, soft:.1, gen:'cobble', ramp:['#121110','#1d1b19','#292623','#36322e','#45403a','#55504a'] },
 ];
 // panel order and shortcuts (1–9, 0, then Shift+1…)
-const DISPLAY = ['grass','forest','pine','dirt','sand','rock','lrock','snow','water','lava','cobble','flag','wood','tatami','engawa','gravel','moss','wetrock','crystal','cavemud','biomoss','jungle','beach','reef','mangrove','deck','pier','quay'].map(k => TERRAINS.findIndex(t => t.key === k));
+const DISPLAY = ['grass','forest','pine','dirt','sand','rock','lrock','snow','water','lava','cobble','flag','wood','tatami','engawa','gravel','moss','wetrock','crystal','cavemud','biomoss','jungle','beach','reef','mangrove','deck','pier','quay','brass','ironplate','grating','soot'].map(k => TERRAINS.findIndex(t => t.key === k));
 /* ---------- palette: colour ramps generated from a base colour ---------- */
 function hexToHsl(hex){ let [r, g, b] = hexRgb(hex).map(v => v / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let h = 0, s = 0;
   if (mx !== mn){ const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return [h, s, l]; }
@@ -494,6 +503,18 @@ function genTex(T, P, seed, salt){
         case 'quay': { const rows = TILE_CELLS * 2, row = Math.floor(v * rows), fy = v * rows - row, off = row % 2 ? .5 : 0, cu = u * TILE_CELLS + off, col = Math.floor(cu), fx = cu - col;
           t = 0.32 + 0.3 * hash(row * 31 + col, 3, s) + 0.12 * (fbm(u, v, 6, 3, s + 5) - .5) + g * .08; if (fbm(u, v, 3, 3, s + 9) > .64) t -= .14;
           if (fx < .035 || fy < .07) t = 0.05; else if (fx < .07 || fy < .13) t += .08; break; }
+        case 'plate': { const n = TILE_CELLS, row = Math.floor(v * n), fy = v * n - row, cu = u * n + (row % 2 ? .5 : 0), col = Math.floor(cu), fx = cu - col;
+          t = 0.42 + 0.2 * hash(row * 17 + col, 3, s) + 0.12 * (fbm(u, v, 3, 3, s + 4) - .5) + 0.05 * Math.sin((fx * 1.3 + fy) * 14 + fbm(u, v, 8, 2, s) * 5) + (.5 - fy) * .14 + g * .05;
+          if (fbm(u, v, 4, 3, s + 8) > .66) t -= .12;
+          const dx = ((fx * 5) % 1 - .5) / 5, dy = ((fy * 5) % 1 - .5) / 5; let rd = 1, rx = 0, ry = 0;
+          for (const e of [fy - .1, fy - .9]) if (Math.hypot(dx, e) < rd){ rd = Math.hypot(dx, e); rx = dx; ry = e; }
+          for (const e of [fx - .1, fx - .9]) if (Math.hypot(e, dy) < rd){ rd = Math.hypot(e, dy); rx = e; ry = dy; }
+          if (rd < .04) t = .78 - (rx + ry) * 7; else if (rd < .055) t = .12;
+          if (fx < .018 || fy < .018) t = 0.04; else if (fx < .035 || fy < .035) t += .12; break; }
+        case 'grate': { const n = TILE_CELLS * 4, fu = (u * n) % 1, fv = (v * n) % 1, cx2 = (u * TILE_CELLS) % 1, cy2 = (v * TILE_CELLS) % 1;
+          if (cx2 < .06 || cy2 < .06) t = .62 + (cx2 < .03 || cy2 < .03 ? .15 : -.1) + g * .05;
+          else if (fu < .26) t = .35 + (.13 - Math.abs(fu - .13)) * 3.5 + g * .05; else if (fv < .26) t = .3 + (.13 - Math.abs(fv - .13)) * 3.5 + g * .05;
+          else t = .02 + .07 * fbm(u, v, 4, 2, s); break; }
         case 'moss': { const cu = fbm(u, v, 10, 3, s + 21); t = 0.2 + 0.4 * fbm(u, v, 4, 5, s) + 0.32 * cu * cu + g * 0.07; if (hash(px, py, s + 4) > .994) t = .95; break; }
         case 'wood': {
           const rows = TILE_CELLS * (T.ppc || 2), row = Math.floor(v * rows), fy = v * rows - row;
@@ -657,6 +678,8 @@ const WALLMATS = {
   wood:  { key: 'wood',   ramp: ['#24160b','#352112','#4a2f19','#5f3d21','#764d2a','#8e5f35'] },
   cave:  { key: 'rock', tile: 8, ramp: ['#16171a','#212226','#2d2f33','#3a3c41','#494b51','#5b5d63'] },
   hull:  { key: 'wood', ramp: ['#120b06','#1e130a','#2c1c0f','#3b2615','#4c321c','#5e3f24'] },
+  brasswall:{ key: 'plate', ramp: ['#1c1206','#3e2a0e','#6a4a18','#9a7228','#c49a40','#ead07a'] },
+  ironwall: { key: 'plate', ramp: ['#0e1013','#22262c','#363c44','#4c535d','#646c77','#848c97'] },
   bamboo:{ key: 'wood', ramp: ['#3a3a14','#55541c','#706c26','#8a8432','#a59c42','#bdb258'] },
 };
 Object.values(WALLMATS).forEach(w => w.rgb = w.ramp.map(hexRgb));
@@ -1489,15 +1512,187 @@ Object.assign(SCATTER_SETS, {
   harbour:   { name: 'Harbour clutter', keys: ['crate', 'barrel', 'ropecoil', 'cargonet', 'bollard'] },
 });
 STAMP_KEYS.push(...Object.keys(STAMPS).filter(k => !STAMP_KEYS.includes(k) && STAMPS[k].cat !== 'hidden'));
+// ---- Steampunk pack ----
+Object.assign(RAMP, {
+  brass:  ['#1c1206','#3e2a0e','#6a4a18','#9a7228','#c49a40','#ecd282'].map(hexRgb),
+  copper: ['#200e06','#43200e','#6e3618','#9a5228','#c4743e','#eaa676'].map(hexRgb),
+  fabric: ['#2e261a','#4c4030','#6c5c44','#8e7c5e','#b29f7e','#d8caa6'].map(hexRgb),
+});
+function cog(c, x, y, r, n, ramp, R){ // a gear seen face-on
+  const path = k => { c.beginPath(); for (let i = 0; i <= n * 4; i++){ const a = i / (n * 4) * 6.2832, rr = (i % 4 < 2 ? r : r * .8) * k; i ? c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : c.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.closePath(); };
+  c.fillStyle = 'rgba(6,5,3,.92)'; path(1.07); c.fill(); c.fillStyle = litFill(c, x, y, r, ramp, .25, .95); path(1); c.fill();
+  disc(c, x, y, r * .68, rgba(ramp, .3)); const h = Math.max(3, Math.round(n / 2.5));
+  for (let i = 0; i < h; i++){ const a = i / h * 6.2832 + .3; disc(c, x + Math.cos(a) * r * .42, y + Math.sin(a) * r * .42, r * .15, '#0d0a06'); }
+  disc(c, x, y, r * .24, litFill(c, x, y, r * .24, ramp, .4, .95)); disc(c, x, y, r * .08, '#0a0805');
+  c.strokeStyle = 'rgba(255,240,200,.35)'; c.lineWidth = Math.max(.6, R / 60); c.beginPath(); c.arc(x, y, r * .74, 3.6, 5.2); c.stroke();
+}
+function pipeSeg(c, x0, y0, x1, y1, w, ramp, R, flanges = true){ // straight pipe with cylinder shading
+  const L = Math.hypot(x1 - x0, y1 - y0); c.save(); c.translate(x0, y0); c.rotate(Math.atan2(y1 - y0, x1 - x0));
+  c.fillStyle = 'rgba(6,4,2,.92)'; c.fillRect(-1, -w / 2 - 1, L + 2, w + 2);
+  const g = c.createLinearGradient(0, -w / 2, 0, w / 2); g.addColorStop(0, rgba(ramp, .25)); g.addColorStop(.32, rgba(ramp, .95)); g.addColorStop(.55, rgba(ramp, .6)); g.addColorStop(1, rgba(ramp, .12));
+  c.fillStyle = g; c.fillRect(0, -w / 2, L, w);
+  if (flanges) for (const fx of [0, L]){ const fw = w * .35; c.fillStyle = 'rgba(6,4,2,.92)'; c.fillRect(fx - fw / 2 - 1, -w * .7 - 1, fw + 2, w * 1.4 + 2); c.fillStyle = g; c.save(); c.scale(1, 1.4); c.fillRect(fx - fw / 2, -w / 2, fw, w); c.restore();
+    for (const sy of [-1, 1]) disc(c, fx, sy * w * .5, Math.max(.8, w * .08), 'rgba(255,240,200,.7)'); }
+  c.restore();
+}
+function pipeBend(c, cx, cy, rr, a0, a1, w, ramp, R){ // quarter bend: concentric strokes fake a curved cylinder
+  c.lineCap = 'butt'; c.strokeStyle = 'rgba(6,4,2,.92)'; c.lineWidth = w + 2; c.beginPath(); c.arc(cx, cy, rr, a0, a1); c.stroke();
+  for (let j = 0; j < 10; j++){ const f = j / 9, t = f < .32 ? .25 + f / .32 * .7 : .95 - (f - .32) / .68 * .83; c.strokeStyle = rgba(ramp, t); c.lineWidth = w / 10 + .8; c.beginPath(); c.arc(cx, cy, rr - w / 2 + f * w, a0, a1); c.stroke(); }
+}
+function rivets(c, pts, R){ for (const [x, y] of pts){ disc(c, x + .4, y + .5, Math.max(.8, R * .025), 'rgba(0,0,0,.5)'); disc(c, x, y, Math.max(.7, R * .022), 'rgba(255,236,190,.75)'); } }
+Object.assign(STAMPS, {
+  gear:     { cat: 'steam', name: 'Big gear', w: 2, h: 2, z: 1, hg: .2, tint: 'brass', draw(c, R, rnd){ cog(c, 0, 0, R * .9, 14 + (rnd() * 6 | 0), RAMP.brass, R); } },
+  gears:    { cat: 'steam', name: 'Gear train', w: 2, h: 1.6, z: 1, hg: .3, tint: 'brass', draw(c, R, rnd){
+    cog(c, -R * .42, R * .1, R * .52, 12, RAMP.brass, R); cog(c, R * .5, -R * .2, R * .4, 9, RAMP.copper, R); cog(c, R * .62, R * .52, R * .24, 7, RAMP.metal, R); } },
+  pipe:     { cat: 'steam', name: 'Pipe', w: .6, h: 2, z: 1, hg: .4, tint: 'copper', draw(c, R, rnd){ pipeSeg(c, 0, -R * .95, 0, R * .95, R * .26, RAMP.copper, R); } },
+  pipebend: { cat: 'steam', name: 'Pipe bend', w: 1, h: 1, z: 1, hg: .4, tint: 'copper', draw(c, R, rnd){ pipeBend(c, -R * .5, -R * .5, R * .5, 0, Math.PI / 2, R * .26, RAMP.copper, R); } },
+  pipetee:  { cat: 'steam', name: 'Pipe junction & valve', w: 1, h: 1, z: 2, hg: .7, tint: 'copper', draw(c, R, rnd){
+    pipeSeg(c, -R * .5, 0, R * .5, 0, R * .26, RAMP.copper, R, false); pipeSeg(c, 0, 0, 0, R * .5, R * .26, RAMP.copper, R, false);
+    disc(c, 0, 0, R * .2, 'rgba(6,4,2,.92)'); disc(c, 0, 0, R * .18, litFill(c, 0, 0, R * .18, RAMP.brass, .3, .9));
+    c.strokeStyle = '#2a0c08'; c.lineWidth = R * .07; c.beginPath(); c.arc(0, 0, R * .3, 0, 7); c.stroke(); c.strokeStyle = '#b8301c'; c.lineWidth = R * .045; c.stroke();
+    c.beginPath(); for (let i = 0; i < 4; i++){ const a = i * Math.PI / 2 + .4; c.moveTo(0, 0); c.lineTo(Math.cos(a) * R * .3, Math.sin(a) * R * .3); } c.lineWidth = R * .03; c.stroke(); disc(c, 0, 0, R * .05, '#e8d090'); } },
+  boiler:   { cat: 'steam', name: 'Boiler', w: 2, h: 3, z: 2, hg: 2, tint: 'copper', lp: 'glow', lc: '#ff8a3a', draw(c, R, rnd){
+    const w = R * .85, h = R * 1.4, cap = k => { c.beginPath(); c.roundRect(-w * k, -h * k, 2 * w * k, 2 * h * k, w * k); };
+    c.fillStyle = 'rgba(6,4,2,.94)'; cap(1.04); c.fill(); c.fillStyle = linFill(c, -w, 0, w, 0, RAMP.copper, .25, .95); cap(1); c.fill();
+    c.fillStyle = linFill(c, -w, 0, w, 0, RAMP.copper, .9, .2); cap(1); c.save(); c.clip(); c.globalAlpha = .35; c.fillRect(-w, -h, w * .6, 2 * h); c.restore();
+    for (const y of [-h * .45, 0, h * .45]){ c.fillStyle = 'rgba(10,6,2,.55)'; c.fillRect(-w, y - R * .03, 2 * w, R * .06); const pts = []; for (let q = -w * .85; q <= w * .85; q += w * .28) pts.push([q, y]); rivets(c, pts, R); }
+    disc(c, 0, -h * .7, R * .22, 'rgba(6,4,2,.94)'); disc(c, 0, -h * .7, R * .19, litFill(c, 0, -h * .7, R * .19, RAMP.brass, .3, .95)); disc(c, 0, -h * .7, R * .1, '#120c06');
+    disc(c, w * .55, h * .1, R * .14, '#2a2010'); disc(c, w * .55, h * .1, R * .11, '#efe6cc'); c.strokeStyle = '#b02010'; c.lineWidth = Math.max(.8, R / 50); c.beginPath(); c.moveTo(w * .55, h * .1); c.lineTo(w * .55 + R * .08, h * .1 - R * .05); c.stroke();
+    c.fillStyle = '#140a04'; c.fillRect(-R * .3, h * .7, R * .6, R * .3); const g = c.createRadialGradient(0, h * .86, 0, 0, h * .86, R * .3); g.addColorStop(0, '#ffe0a0'); g.addColorStop(.5, '#ff7a20'); g.addColorStop(1, 'rgba(120,20,0,.3)'); c.fillStyle = g; c.fillRect(-R * .26, h * .73, R * .52, R * .24); } },
+  furnace:  { cat: 'steam', name: 'Furnace', w: 2, h: 2, z: 2, hg: 1.6, lp: 'campfire', lc: '#ff9a40', draw(c, R, rnd){
+    const s = R * .9; c.fillStyle = 'rgba(8,6,4,.94)'; c.fillRect(-s - 1, -s - 1, 2 * s + 2, 2 * s + 2);
+    for (let yy = -s; yy < s - 1; yy += R * .2) for (let xx = -s + ((yy / (R * .2)) & 1 ? R * .15 : 0); xx < s - 1; xx += R * .3){ const bw = Math.min(R * .3, s - xx); c.fillStyle = `rgb(${110 + rnd() * 40 | 0},${48 + rnd() * 20 | 0},${34 + rnd() * 14 | 0})`; c.fillRect(xx + 1, yy + 1, bw - 2, R * .2 - 2); }
+    c.fillStyle = '#0c0806'; c.fillRect(-s * .55, -s * .55, s * 1.1, s * 1.1); const g = c.createRadialGradient(0, 0, 0, 0, 0, s * .6); g.addColorStop(0, '#fff2c0'); g.addColorStop(.4, '#ffaa30'); g.addColorStop(.8, '#c83a10'); g.addColorStop(1, 'rgba(60,10,0,.6)'); c.fillStyle = g; c.fillRect(-s * .5, -s * .5, s, s);
+    for (let i = 0; i < 9; i++) rock(c, (rnd() - .5) * s * .8, (rnd() - .5) * s * .8, R * (.05 + rnd() * .05), rnd, R); } },
+  gaslamp:  { cat: 'steam', name: 'Gas lamp', w: .6, h: .6, z: 3, hg: 2, lp: 'lamp', lc: '#ffe2a8', light: 4, draw(c, R, rnd){
+    disc(c, 0, 0, R * .2, 'rgba(6,6,8,.94)'); c.fillStyle = linFill(c, -R * .17, -R * .17, R * .17, R * .17, RAMP.metal, .7, .2); c.beginPath(); c.moveTo(0, -R * .19); for (let i = 1; i < 6; i++){ const a = -Math.PI / 2 + i / 6 * 6.2832; c.lineTo(Math.cos(a) * R * .19, Math.sin(a) * R * .19); } c.closePath(); c.fill();
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, R * .13); g.addColorStop(0, '#fffbe8'); g.addColorStop(.6, '#ffd890'); g.addColorStop(1, 'rgba(200,140,60,.7)'); disc(c, 0, 0, R * .13, g); disc(c, 0, 0, R * .05, '#3a3020'); } },
+  tesla:    { cat: 'steam', name: 'Tesla coil', w: 1.4, h: 1.4, z: 3, hg: 2.4, lp: 'torch', lc: '#9fd0ff', draw(c, R, rnd){
+    disc(c, 0, 0, R * .6, 'rgba(6,6,8,.94)'); disc(c, 0, 0, R * .56, litFill(c, 0, 0, R * .56, RAMP.metal, .2, .75)); rivets(c, Array.from({ length: 10 }, (_, i) => [Math.cos(i * .628) * R * .5, Math.sin(i * .628) * R * .5]), R);
+    for (let k = 0; k < 7; k++){ c.strokeStyle = k % 2 ? rgba(RAMP.copper, .8) : rgba(RAMP.copper, .45); c.lineWidth = R * .035; c.beginPath(); c.arc(0, 0, R * (.12 + k * .035), 0, 7); c.stroke(); }
+    c.strokeStyle = 'rgba(6,6,8,.9)'; c.lineWidth = R * .15; c.beginPath(); c.arc(0, 0, R * .4, 0, 7); c.stroke(); c.strokeStyle = 'rgba(210,220,230,.95)'; c.lineWidth = R * .1; c.stroke(); c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = R * .03; c.beginPath(); c.arc(0, 0, R * .42, 3.4, 5); c.stroke();
+    c.lineCap = 'round'; for (let i = 0; i < 4; i++){ let a = rnd() * 6.28, x = Math.cos(a) * R * .45, y = Math.sin(a) * R * .45; c.beginPath(); c.moveTo(x, y);
+      for (let k = 0; k < 5; k++){ x += Math.cos(a) * R * .07 + (rnd() - .5) * R * .12; y += Math.sin(a) * R * .07 + (rnd() - .5) * R * .12; c.lineTo(x, y); }
+      c.strokeStyle = 'rgba(120,190,255,.55)'; c.lineWidth = R * .06; c.stroke(); c.strokeStyle = '#eef8ff'; c.lineWidth = Math.max(.7, R * .018); c.stroke(); } } },
+  automaton:{ cat: 'steam', name: 'Clockwork automaton', w: 1, h: 1, z: 3, hg: 1.8, tint: 'brass', draw(c, R, rnd){
+    for (const sx of [-1, 1]){ disc(c, sx * R * .34, R * .02, R * .11, 'rgba(6,4,2,.94)'); disc(c, sx * R * .34, R * .02, R * .09, litFill(c, sx * R * .34, R * .02, R * .09, RAMP.brass, .3, .95)); }
+    c.fillStyle = 'rgba(6,4,2,.94)'; c.beginPath(); c.ellipse(0, 0, R * .32, R * .2, 0, 0, 7); c.fill(); c.fillStyle = litFill(c, 0, 0, R * .3, RAMP.brass, .25, .95); c.beginPath(); c.ellipse(0, 0, R * .3, R * .18, 0, 0, 7); c.fill();
+    rivets(c, [[-R * .2, -R * .08], [R * .2, -R * .08], [-R * .2, R * .08], [R * .2, R * .08]], R);
+    c.strokeStyle = 'rgba(6,4,2,.9)'; c.lineWidth = R * .05; c.beginPath(); c.moveTo(0, R * .14); c.lineTo(0, R * .32); c.stroke(); c.strokeStyle = rgba(RAMP.brass, .8); c.lineWidth = R * .03; c.stroke();
+    c.fillStyle = rgba(RAMP.brass, .75); c.beginPath(); c.ellipse(-R * .07, R * .34, R * .07, R * .04, 0, 0, 7); c.ellipse(R * .07, R * .34, R * .07, R * .04, 0, 0, 7); c.fill();
+    disc(c, 0, -R * .04, R * .15, 'rgba(6,6,8,.94)'); disc(c, 0, -R * .04, R * .13, litFill(c, 0, -R * .04, R * .13, RAMP.metal, .3, .9));
+    for (const sx of [-1, 1]){ disc(c, sx * R * .05, -R * .12, R * .035, 'rgba(120,220,255,.5)'); disc(c, sx * R * .05, -R * .12, R * .018, '#e8fbff'); } } },
+  workbench:{ cat: 'steam', name: 'Tinker bench', w: 2, h: 1, z: 2, hg: .9, tint: 'wood', draw(c, R, rnd){
+    plankRect(c, 0, 0, R * 1.9, R * .85, 0, R, true, RAMP.wood, rnd);
+    cog(c, -R * .6, -R * .1, R * .16, 8, RAMP.brass, R); cog(c, -R * .38, R * .15, R * .1, 7, RAMP.copper, R);
+    c.lineCap = 'round'; c.strokeStyle = 'rgba(6,6,8,.9)'; c.lineWidth = R * .07; c.beginPath(); c.moveTo(R * .05, -R * .2); c.lineTo(R * .4, R * .1); c.stroke(); c.strokeStyle = rgba(RAMP.metal, .7); c.lineWidth = R * .04; c.stroke(); c.lineWidth = R * .035; c.beginPath(); c.arc(R * .05, -R * .2, R * .05, .5, 5.5); c.stroke();
+    c.fillStyle = 'rgba(6,6,8,.9)'; c.fillRect(R * .58, -R * .32, R * .3, R * .2); c.fillStyle = linFill(c, R * .6, 0, R * .86, 0, RAMP.metal, .7, .3); c.fillRect(R * .6, -R * .3, R * .26, R * .16);
+    for (let i = 0; i < 5; i++) disc(c, R * (.05 + rnd() * .5), R * (.15 + rnd() * .15), R * .02, rgba(RAMP.brass, .9)); disc(c, R * .7, R * .2, R * .09, '#efe6cc'); c.strokeStyle = '#2a2010'; c.lineWidth = Math.max(.6, R / 60); c.beginPath(); c.arc(R * .7, R * .2, R * .09, 0, 7); c.stroke(); } },
+  smokestack:{ cat: 'steam', name: 'Smokestack', w: 1.4, h: 1.4, z: 4, hg: 4, draw(c, R, rnd){
+    disc(c, 0, 0, R * .46, 'rgba(6,4,2,.94)'); for (let i = 0; i < 18; i++){ const a = i / 18 * 6.2832; c.save(); c.rotate(a); c.fillStyle = `rgb(${105 + rnd() * 40 | 0},${44 + rnd() * 18 | 0},${32 + rnd() * 14 | 0})`; c.fillRect(R * .3, -R * .08, R * .14, R * .15); c.restore(); }
+    disc(c, 0, 0, R * .3, '#141210'); const g = c.createRadialGradient(0, 0, 0, 0, 0, R * .3); g.addColorStop(0, '#000'); g.addColorStop(1, 'rgba(40,36,32,.9)'); disc(c, 0, 0, R * .28, g);
+    for (let i = 0; i < 7; i++){ const a = .6 + (rnd() - .5) * .8, d = R * (.15 + i * .07); disc(c, Math.cos(a) * d, Math.sin(a) * d, R * (.12 + i * .025), `rgba(${150 + rnd() * 30 | 0},${150 + rnd() * 30 | 0},${155 + rnd() * 30 | 0},${.28 - i * .025})`); } } },
+  envelope: { cat: 'steam', name: 'Airship envelope', w: 5, h: 12, z: 4, hg: 4, tint: 'fabric', openAs: 'envelope_open', draw(c, R, rnd){
+    const rx = R * 2.35, ry = R * 5.8; c.fillStyle = 'rgba(6,4,2,.9)'; c.beginPath(); c.ellipse(0, 0, rx * 1.02, ry * 1.01, 0, 0, 7); c.fill();
+    for (const sx of [-1, 1]){ c.fillStyle = 'rgba(6,4,2,.9)'; c.beginPath(); c.moveTo(sx * rx * .25, ry * .7); c.lineTo(sx * rx * .95, ry * 1.02); c.lineTo(sx * rx * .2, ry * .98); c.closePath(); c.fill();
+      c.fillStyle = rgba(RAMP.fabric, .4); c.beginPath(); c.moveTo(sx * rx * .27, ry * .72); c.lineTo(sx * rx * .9, ry); c.lineTo(sx * rx * .22, ry * .96); c.closePath(); c.fill(); }
+    const g = c.createLinearGradient(-rx, 0, rx, 0); g.addColorStop(0, rgba(RAMP.fabric, .3)); g.addColorStop(.3, rgba(RAMP.fabric, .95)); g.addColorStop(.6, rgba(RAMP.fabric, .7)); g.addColorStop(1, rgba(RAMP.fabric, .12));
+    c.fillStyle = g; c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7); c.fill();
+    c.save(); c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7); c.clip(); c.strokeStyle = 'rgba(40,30,18,.35)'; c.lineWidth = Math.max(.8, R / 35);
+    for (let k = 1; k < 4; k++){ c.beginPath(); c.ellipse(0, 0, rx * k / 4, ry, 0, 0, 7); c.stroke(); }
+    c.strokeStyle = rgba(RAMP.brass, .8); c.lineWidth = Math.max(1, R / 20); for (const y of [-.55, -.2, .15, .5]){ c.beginPath(); c.moveTo(-rx, y * ry); c.lineTo(rx, y * ry); c.stroke(); } c.restore();
+    disc(c, 0, -ry * .96, R * .25, litFill(c, 0, -ry * .96, R * .25, RAMP.brass, .3, .95)); } },
+  envelope_open:{ cat: 'hidden', name: 'Airship envelope (hidden)', w: 5, h: 12, z: 0, hg: .01, draw(c, R){ c.setLineDash([R * .2, R * .2]); c.strokeStyle = 'rgba(230,220,190,.28)'; c.lineWidth = Math.max(1, R / 25); c.beginPath(); c.ellipse(0, 0, R * 2.35, R * 5.8, 0, 0, 7); c.stroke(); } },
+  propeller:{ cat: 'steam', name: 'Propeller', w: 2, h: 2, z: 3, hg: 1, tint: 'wood', draw(c, R, rnd){
+    for (let i = 0; i < 4; i++){ c.save(); c.rotate(i * Math.PI / 2 + .3); c.fillStyle = 'rgba(6,4,2,.92)'; c.beginPath(); c.ellipse(0, -R * .48, R * .17, R * .48, .12, 0, 7); c.fill();
+      c.fillStyle = linFill(c, -R * .15, 0, R * .15, 0, RAMP.wood, .85, .3); c.beginPath(); c.ellipse(0, -R * .48, R * .15, R * .45, .12, 0, 7); c.fill(); c.fillStyle = rgba(RAMP.brass, .9); c.beginPath(); c.ellipse(.02 * R, -R * .88, R * .07, R * .06, 0, 0, 7); c.fill(); c.restore(); }
+    disc(c, 0, 0, R * .18, 'rgba(6,4,2,.94)'); disc(c, 0, 0, R * .16, litFill(c, 0, 0, R * .16, RAMP.brass, .3, .95)); } },
+  gauge:    { cat: 'steam', name: 'Pressure gauge', w: .6, h: .6, z: 2, hg: 1, draw(c, R, rnd){
+    disc(c, 0, 0, R * .22, 'rgba(6,4,2,.94)'); disc(c, 0, 0, R * .2, litFill(c, 0, 0, R * .2, RAMP.brass, .3, .95)); disc(c, 0, 0, R * .15, '#f2ead4');
+    c.strokeStyle = '#c02818'; c.lineWidth = R * .03; c.beginPath(); c.arc(0, 0, R * .12, -.6, .5); c.stroke(); c.strokeStyle = '#2a2418'; c.lineWidth = Math.max(.6, R / 80); c.beginPath(); for (let i = 0; i < 9; i++){ const a = 2.3 + i * .5; c.moveTo(Math.cos(a) * R * .13, Math.sin(a) * R * .13); c.lineTo(Math.cos(a) * R * .1, Math.sin(a) * R * .1); } c.stroke();
+    const a = 2.5 + rnd() * 3; c.lineWidth = Math.max(.8, R / 50); c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * R * .12, Math.sin(a) * R * .12); c.stroke(); disc(c, 0, 0, R * .025, '#2a2418'); } },
+  telescope:{ cat: 'steam', name: 'Telescope', w: 1.4, h: 1.4, z: 3, hg: 1.6, tint: 'brass', draw(c, R, rnd){
+    c.lineCap = 'round'; for (let i = 0; i < 3; i++){ const a = i * 2.094 + .5; c.strokeStyle = 'rgba(6,4,2,.9)'; c.lineWidth = R * .07; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * R * .5, Math.sin(a) * R * .5); c.stroke(); c.strokeStyle = rgba(RAMP.wood, .55); c.lineWidth = R * .04; c.stroke(); }
+    c.save(); c.rotate(-.7); c.fillStyle = 'rgba(6,4,2,.94)'; c.beginPath(); c.moveTo(-R * .45, -R * .07); c.lineTo(R * .6, -R * .12); c.lineTo(R * .6, R * .12); c.lineTo(-R * .45, R * .07); c.closePath(); c.fill();
+    c.fillStyle = linFill(c, 0, -R * .11, 0, R * .11, RAMP.brass, .9, .2); c.beginPath(); c.moveTo(-R * .43, -R * .055); c.lineTo(R * .58, -R * .1); c.lineTo(R * .58, R * .1); c.lineTo(-R * .43, R * .055); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(6,4,2,.6)'; for (const x of [-R * .1, R * .25]) c.fillRect(x, -R * .1, R * .03, R * .2); c.fillStyle = '#7ab6e0'; c.fillRect(R * .58, -R * .09, R * .03, R * .18); c.restore(); } },
+  coal:     { cat: 'steam', name: 'Coal heap', w: 1.4, h: 1.4, z: 1, hg: .5, draw(c, R, rnd){
+    disc(c, 0, 0, R * .6, 'rgba(8,8,8,.75)'); for (let i = 0; i < 40; i++){ const a = rnd() * 6.28, d = R * .5 * Math.sqrt(rnd()), x = Math.cos(a) * d, y = Math.sin(a) * d, r = R * (.05 + rnd() * .06);
+      c.fillStyle = '#060606'; c.beginPath(); c.moveTo(x + r, y); for (let k = 1; k < 5; k++){ const b = k / 5 * 6.28 + rnd() * .4; c.lineTo(x + Math.cos(b) * r, y + Math.sin(b) * r); } c.closePath(); c.fill(); disc(c, x - r * .3, y - r * .3, r * .3, `rgba(${80 + rnd() * 40 | 0},${85 + rnd() * 40 | 0},${95 + rnd() * 40 | 0},.6)`); } } },
+  engine:   { cat: 'steam', name: 'Steam engine', w: 3, h: 2, z: 2, hg: 1.4, draw(c, R, rnd){
+    c.fillStyle = 'rgba(6,6,8,.94)'; c.fillRect(-R * 1.45, -R * .42, R * 2.4, R * .84); c.fillStyle = linFill(c, 0, -R * .4, 0, R * .4, RAMP.metal, .65, .25); c.fillRect(-R * 1.43, -R * .4, R * 2.36, R * .8);
+    rivets(c, [[-R * 1.35, -R * .32], [-R * 1.35, R * .32], [R * .85, -R * .32], [R * .85, R * .32]], R);
+    pipeSeg(c, -R * 1.3, 0, -R * .5, 0, R * .5, RAMP.copper, R); c.strokeStyle = 'rgba(6,6,8,.9)'; c.lineWidth = R * .1; c.beginPath(); c.moveTo(-R * .5, 0); c.lineTo(R * .6, R * .05); c.stroke(); c.strokeStyle = rgba(RAMP.metal, .85); c.lineWidth = R * .05; c.stroke();
+    const fx = R * .95, fr = R * .9; c.strokeStyle = 'rgba(6,6,8,.94)'; c.lineWidth = R * .22; c.beginPath(); c.arc(fx, 0, fr * .88, 0, 7); c.stroke(); c.strokeStyle = rgba(RAMP.metal, .45); c.lineWidth = R * .16; c.stroke(); c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = R * .04; c.beginPath(); c.arc(fx, 0, fr * .9, 3.6, 5); c.stroke();
+    c.strokeStyle = rgba(RAMP.metal, .35); c.lineWidth = R * .08; c.beginPath(); for (let i = 0; i < 6; i++){ const a = i / 6 * 6.28; c.moveTo(fx, 0); c.lineTo(fx + Math.cos(a) * fr * .82, Math.sin(a) * fr * .82); } c.stroke(); disc(c, fx, 0, R * .16, litFill(c, fx, 0, R * .16, RAMP.brass, .3, .95)); } },
+  conveyor: { cat: 'steam', name: 'Conveyor belt', w: 1.2, h: 3, z: 1, hg: .5, draw(c, R, rnd){
+    c.fillStyle = 'rgba(6,6,8,.94)'; c.fillRect(-R * .55, -R * 1.45, R * 1.1, R * 2.9); c.fillStyle = rgba(RAMP.metal, .4); c.fillRect(-R * .53, -R * 1.43, R * 1.06, R * 2.86);
+    c.fillStyle = '#1a1816'; c.fillRect(-R * .42, -R * 1.35, R * .84, R * 2.7); c.strokeStyle = 'rgba(90,85,80,.7)'; c.lineWidth = Math.max(.8, R / 40); c.beginPath(); for (let y = -R * 1.3; y < R * 1.35; y += R * .14){ c.moveTo(-R * .42, y); c.lineTo(R * .42, y); } c.stroke();
+    for (const y of [-R * 1.35, R * 1.35]) pipeSeg(c, -R * .5, y, R * .5, y, R * .18, RAMP.metal, R, false); plankRect(c, 0, -R * .4, R * .5, R * .5, .1, R, true, RAMP.wood, rnd); } },
+});
+Object.assign(SCATTER_SETS, {
+  workshop: { name: 'Workshop clutter', keys: ['gears', 'gauge', 'coal', 'crate', 'barrel', 'pipetee'] },
+  pipework: { name: 'Pipework', keys: ['pipe', 'pipe', 'pipebend', 'pipetee', 'gauge'] },
+  foundry:  { name: 'Foundry yard', keys: ['coal', 'coal', 'gear', 'barrel'] },
+});
+STAMP_KEYS.push(...Object.keys(STAMPS).filter(k => !STAMP_KEYS.includes(k) && STAMPS[k].cat !== 'hidden'));
+// ---- Great tree: oblique view (trunk on the ground, crown leaning up the screen) with its own cast shadow ----
+function greatTrunk(c, R, rnd){
+  const by = R * 1.25, g0 = c.createRadialGradient(0, by, 0, 0, by, R * .8); g0.addColorStop(0, 'rgba(0,0,0,.55)'); g0.addColorStop(1, 'rgba(0,0,0,0)');
+  c.save(); c.scale(1, .38); c.fillStyle = g0; c.beginPath(); c.arc(0, by / .38, R * .8, 0, 7); c.fill(); c.restore();
+  c.lineCap = 'round';
+  for (let i = 0; i < 5; i++){ const a = Math.PI * (.05 + i * .225) + (rnd() - .5) * .25, ex = Math.cos(a) * R * (.26 + rnd() * .1), ey = by + Math.sin(a) * R * .1, w = R * .07;   // root flares, front half only
+    for (const [col, k] of [[rgba(RAMP.bark, .02, .9), 1.25], [rgba(RAMP.bark, .38), 1]]){ c.fillStyle = col; c.beginPath(); c.moveTo(ex * .2 - w * k, by - R * .12); c.quadraticCurveTo(ex * .55, by - R * .05, ex, ey); c.quadraticCurveTo(ex * .55, by + R * .02, ex * .2 + w * k, by - R * .04); c.closePath(); c.fill(); } }
+  const tx = R * .05, ty = -R * .3, poly = k => { c.beginPath(); c.moveTo(-R * .2 * k, by); c.quadraticCurveTo(-R * .12 * k, by - R * .5, tx - R * .1 * k, ty); c.lineTo(tx + R * .1 * k, ty); c.quadraticCurveTo(R * .14 * k, by - R * .5, R * .2 * k, by); c.closePath(); };
+  c.fillStyle = rgba(RAMP.bark, .02); poly(1.12); c.fill();
+  const g = c.createLinearGradient(-R * .2, 0, R * .2, 0); g.addColorStop(0, rgba(RAMP.bark, .85)); g.addColorStop(.45, rgba(RAMP.bark, .55)); g.addColorStop(1, rgba(RAMP.bark, .08)); c.fillStyle = g; poly(1); c.fill();
+  c.save(); poly(1); c.clip(); c.strokeStyle = rgba(RAMP.bark, .05, .55); c.lineWidth = Math.max(.7, R / 45);
+  for (let i = 0; i < 9; i++){ const x = (rnd() - .5) * R * .36; c.beginPath(); c.moveTo(x, by); for (let y = by; y > ty; y -= R * .1) c.lineTo(x * (.55 + .45 * (y - ty) / (by - ty)) + tx * (1 - (y - ty) / (by - ty)) + (rnd() - .5) * R * .03, y); c.stroke(); } c.restore();
+  for (const [a, l] of [[-2.2, .75], [-1.0, .7], [-1.65, .6]]){ c.strokeStyle = rgba(RAMP.bark, .3); c.lineWidth = R * .07; c.beginPath(); c.moveTo(tx, ty + R * .05); c.quadraticCurveTo(tx + Math.cos(a) * R * l * .5, ty + Math.sin(a) * R * l * .4, tx + Math.cos(a) * R * l, ty + Math.sin(a) * R * l); c.stroke(); }
+}
+function greatBranches(c, R, rnd){ // winter: bare limbs fanning into the crown's space
+  const br = (x, y, a, len, w, d) => { const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len * .85;
+    c.strokeStyle = rgba(RAMP.bark, d > 2 ? .3 : .45); c.lineWidth = Math.max(.6, w); c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo((x + ex) / 2 + (rnd() - .5) * len * .2, (y + ey) / 2, ex, ey); c.stroke();
+    if (d > 0) for (const sg of [-1, 1]) br(ex, ey, a + sg * (.3 + rnd() * .35), len * (.68 + rnd() * .1), w * .66, d - 1); };
+  c.lineCap = 'round'; for (const a of [-2.3, -1.85, -1.3, -.85]) br(R * .05, -R * .25, a + (rnd() - .5) * .2, R * .55, R * .09, 4);
+}
+Object.assign(STAMPS, {
+  bigtree: { cat: 'nature', name: 'Great tree', w: 4, h: 4, z: 3, hg: 6, tint: 'leaf', baseY: 1.25, crownR: 1.35, ownShadow: 1,
+    draw(c, R, rnd){
+      greatTrunk(c, R, rnd);
+      const S = c.canvas.width, oc = document.createElement('canvas'); oc.width = oc.height = S; const o = oc.getContext('2d'); o.setTransform(c.getTransform());
+      const cy = -R * .82;
+      o.save(); o.translate(0, cy); treeCrown(o, R * 1.32, RAMP.leaf, rnd, R, 11); o.restore();                       // main mass
+      const sk = [[-.95, .25, .42], [-.45, .52, .36], [.1, .6, .4], [.62, .45, .38], [1.0, .15, .34]];               // lower boughs, in shade
+      for (const [x, y, r] of sk){ o.save(); o.translate(R * (x + (rnd() - .5) * .15), cy + R * (y + (rnd() - .5) * .12)); treeCrown(o, R * r * (.85 + rnd() * .3), RAMP.leaf, rnd, R, 6); o.restore(); }
+      o.save(); o.translate(-R * .2, cy - R * .38); treeCrown(o, R * .82, RAMP.leaf, rnd, R, 8); o.restore();            // sunlit crown top
+      o.save(); o.translate(R * .35, cy - R * .55); treeCrown(o, R * .45, RAMP.leaf, rnd, R, 6); o.restore();
+      o.save(); o.translate(-R * .55, cy - R * .7); treeCrown(o, R * .38, RAMP.leaf, rnd, R, 6); o.restore();
+      o.globalCompositeOperation = 'source-atop';
+      const sh = o.createLinearGradient(0, cy - R * 1.2, 0, cy + R * 1.25); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(.45, 'rgba(0,0,0,.08)'); sh.addColorStop(1, 'rgba(0,8,0,.5)'); o.fillStyle = sh; o.fillRect(-R * 2.6, -R * 2.6, R * 5.2, R * 5.2);
+      const hi = o.createRadialGradient(-R * .55, cy - R * .9, 0, -R * .55, cy - R * .9, R * 1.1); hi.addColorStop(0, 'rgba(255,250,200,.22)'); hi.addColorStop(1, 'rgba(255,250,200,0)'); o.fillStyle = hi; o.fillRect(-R * 2.6, -R * 2.6, R * 5.2, R * 5.2);
+      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(oc, 0, 0); c.restore(); },
+    drawBare(c, R, rnd){ greatTrunk(c, R, rnd); greatBranches(c, R, rnd); } },
+});
+STAMP_KEYS.push('bigtree');
+function drawOwnShadow(ctx, o, st, P){ // a tree standing at its base: shadow falls away from the sun, crown-shaped, plus the trunk's line
+  const R2 = P * o.s, rr = o.r || 0, b = st.baseY * R2, bx = o.x * P - Math.sin(rr) * b, by = o.y * P + Math.cos(rr) * b, H = st.hg * R2 * .55;
+  const sx = bx + SUN.dx * H, sy = by + SUN.dy * H, L = Math.hypot(SUN.dx, SUN.dy), cr = st.crownR * R2, rnd = mulberry((o.v * 131 + 7) | 0);
+  ctx.save(); ctx.globalAlpha = Math.min(1, SUN.a * 1.1); ctx.filter = `blur(${(R2 * .1).toFixed(1)}px)`; ctx.fillStyle = '#000';
+  ctx.strokeStyle = '#000'; ctx.lineCap = 'round'; ctx.lineWidth = R2 * .3; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + (sx - bx) * .75, by + (sy - by) * .75); ctx.stroke();
+  ctx.translate(sx, sy); ctx.rotate(Math.atan2(SUN.dy, SUN.dx)); ctx.scale(1 + L * 2, .8);
+  ctx.beginPath(); ctx.arc(0, 0, cr * .78, 0, 7); for (let i = 0; i < 9; i++){ const a = i / 9 * 6.28 + rnd() * .4, d = cr * .62, r = cr * (.3 + rnd() * .12); ctx.moveTo(Math.cos(a) * d + r, Math.sin(a) * d); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, r, 0, 7); }
+  ctx.globalAlpha *= seasonFor(o.t, o.v, o.c).mode === 'bare' ? .18 : .8; ctx.fill(); ctx.restore();
+}
 for (const [k, n] of [['jgarden', ['Japanese garden', ['maple', 'sakura', 'jpine', 'mossrock', 'mossrock']]], ['bamboog', ['Bamboo grove', ['bamboo']]], ['sakurag', ['Cherry orchard', ['sakura']]]]) SCATTER_SETS[k] = { name: n[0], keys: n[1] };
 
 
 const spriteCache = new Map();
-const LEAFY = { oak: 1, bush: 1, woods: 1, sakura: 1, maple: 1 }, JP_TREES = { sakura: 1, maple: 1 }, PINEY = { pine: 1, pinewood: 1, jpine: 1, bamboo: 1 }, GRASSY = { tuftg: 1, reeds: 1, hills: 1, flowers: 1, swamp: 1 };
+const LEAFY = { oak: 1, bigtree: 1, bush: 1, woods: 1, sakura: 1, maple: 1 }, JP_TREES = { sakura: 1, maple: 1 }, PINEY = { pine: 1, pinewood: 1, jpine: 1, bamboo: 1 }, GRASSY = { tuftg: 1, reeds: 1, hills: 1, flowers: 1, swamp: 1 };
 const AUTUMN = ['#c0641e', '#d8902a', '#b13a1e', '#a8882a', '#cf9e2e'];
 function seasonFor(t, v, tint){
   const st = STAMPS[t], r = mulberry((v * 7 + 3) | 0)(), out = {};
-  if (st.cat === 'jungle' || st.cat === 'cave' || st.cat === 'hidden') return out;   // tropical and underground: no seasons
+  if (st.cat === 'jungle' || st.cat === 'cave' || st.cat === 'steam' || st.cat === 'hidden') return out;   // tropical and underground: no seasons
   if (SEASON === 'spring'){ if (LEAFY[t] && !JP_TREES[t]){ if (!tint) out.tint = '#5d9c3c'; if (r < .4 && t !== 'woods') out.mode = 'blossom'; } }
   else if (SEASON === 'autumn'){ if (LEAFY[t] && !tint && r > .15) out.tint = AUTUMN[(v >>> 0) % AUTUMN.length]; if (GRASSY[t] && !tint) out.tint = '#9a8a4a'; }
   else if (SEASON === 'winter'){
@@ -1515,7 +1710,7 @@ function getSprite(t, v, R, tint){
   x.translate(size / 2, size / 2); if (st.cat === 'world') x.scale(1.3, 1.3);
   const tk = tint && st.tint, saved = tk && RAMP[tk]; if (tk) RAMP[tk] = rampFromHex(tint).map(hexRgb);
   const rs = mulberry((v * 2654435761 + t.length * 97 + t.charCodeAt(0)) | 0);
-  try { if (sv.mode === 'bare') STAMPS.dead.draw(x, R * Math.max(st.w, st.h) / 1.8, rs); else if (t === 'flowers' && SEASON === 'winter') STAMPS.tuftg.draw(x, R, rs); else st.draw(x, R, rs); } finally { if (tk) RAMP[tk] = saved; }
+  try { if (sv.mode === 'bare' && st.drawBare) st.drawBare(x, R, rs); else if (sv.mode === 'bare') STAMPS.dead.draw(x, R * Math.max(st.w, st.h) / 1.8, rs); else if (t === 'flowers' && SEASON === 'winter') STAMPS.tuftg.draw(x, R, rs); else st.draw(x, R, rs); } finally { if (tk) RAMP[tk] = saved; }
   if (sv.mode){ const rr = mulberry((v * 31 + 7) | 0), half = size / 2 / (st.cat === 'world' ? 1.3 : 1); x.save(); x.globalCompositeOperation = 'source-atop';
     if (sv.mode === 'blossom'){ const cols = ['#f6c9d6', '#fbe3ea', '#ffffff', '#f2a7bf'];
       for (let i = 0; i < 55 * Math.max(st.w, st.h); i++){ x.fillStyle = cols[rr() * 4 | 0]; x.beginPath(); x.arc((rr() - .5) * 2 * half, (rr() - .5) * 2 * half, Math.max(.7, R * (.025 + rr() * .03)), 0, 7); x.fill(); } }
@@ -1527,20 +1722,25 @@ function getSprite(t, v, R, tint){
   y.filter = `brightness(0) blur(${Math.max(.5, R * .05).toFixed(1)}px)`; y.drawImage(c, 0, 0);
   s = { c, sh, size }; spriteCache.set(key, s); return s;
 }
-const CANOPY = { oak: 1, pine: 1, sakura: 1, maple: 1, jpine: 1, bamboo: 1, palm: 1, jtree: 1, mangrove: 1, giantshroom: 1 };
+const CANOPY = { oak: 1, bigtree: 1, pine: 1, sakura: 1, maple: 1, jpine: 1, bamboo: 1, palm: 1, jtree: 1, mangrove: 1, giantshroom: 1 };
 function drawObjects(ctx, m, P){
   const objs = m.struct.objects; if (!objs || !objs.length) return;
   const order = objs.map((o, i) => i).sort((a, b) => (STAMPS[objs[a].t].z - STAMPS[objs[b].t].z) || a - b);
   for (const pass of [0, 1]) for (const i of order){
     const o = objs[i], st = STAMPS[o.t]; if (!st) continue;
     const t2 = !SHOW_TOP && st.openAs ? st.openAs : o.t, sp = getSprite(t2, o.v, P * o.s, o.c);
-    if (!SHOW_TOP && CANOPY[o.t]){ ctx.save(); ctx.translate(o.x * P, o.y * P); ctx.rotate(o.r || 0);
+    if (SHOW_TOP && st.ownShadow && pass === 0){ drawOwnShadow(ctx, o, st, P); continue; }
+    if (!SHOW_TOP && CANOPY[o.t]){ ctx.save(); ctx.translate(o.x * P, o.y * P); ctx.rotate(o.r || 0); if (pass === 1 && st.baseY) ctx.translate(0, st.baseY * P * o.s);
       if (pass === 0){ ctx.globalAlpha = .38; ctx.drawImage(sp.sh, -sp.size / 2, -sp.size / 2); }
       else { const r = P * o.s * (o.t === 'pine' ? .07 : .1); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.arc(r * .3, r * .4, r * 1.1, 0, 7); ctx.fill();
         const g = ctx.createRadialGradient(-r * .3, -r * .3, 0, 0, 0, r); g.addColorStop(0, '#7a5a3c'); g.addColorStop(1, '#3a2618'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); }
       ctx.restore(); continue; }
     ctx.save();
-    if (pass === 0){ const k = Math.min(1.6, st.hg) * P * o.s; ctx.globalAlpha = SUN.a * .85; ctx.translate(o.x * P + k * SUN.dx, o.y * P + k * SUN.dy); }
+    if (pass === 0 && st.hg > 1.6){ const k = Math.min(8, st.hg) * P * o.s, n = st.hg > 3 ? 6 : 3, A = SUN.a * .85, a1 = 1 - Math.pow(1 - A, 1 / n);   // tall: shadow stretches from the base
+      ctx.translate(o.x * P, o.y * P); ctx.globalAlpha = a1;
+      for (let q = 1; q <= n; q++){ ctx.save(); ctx.translate(k * SUN.dx * q / n, k * SUN.dy * q / n); ctx.rotate(o.r || 0); if (o.f) ctx.scale(-1, 1); ctx.drawImage(sp.sh, -sp.size / 2, -sp.size / 2); ctx.restore(); }
+      ctx.restore(); continue; }
+    if (pass === 0){ const k = st.hg * P * o.s; ctx.globalAlpha = SUN.a * .85; ctx.translate(o.x * P + k * SUN.dx, o.y * P + k * SUN.dy); }
     else ctx.translate(o.x * P, o.y * P);
     ctx.rotate(o.r || 0); if (o.f) ctx.scale(-1, 1);
     ctx.drawImage(pass === 0 ? sp.sh : sp.c, -sp.size / 2, -sp.size / 2);
@@ -1556,6 +1756,7 @@ const ROOFMATS = {
   kawara:   ['#1b1f24','#282e35','#373f48','#4a535e','#606a76','#7b8592'],
   hiwada:   ['#2e1a10','#45281a','#5d3826','#764a33','#8f5e42','#a87656'],
   copper:   ['#1f4a42','#2b6157','#3a786c','#4d8f81','#66a596','#86bcae'],
+  ironsheet:['#15181c','#252a30','#363c44','#4a525c','#616a75','#7c8590'],
   palm:     ['#3a3a1a','#555224','#6f6a2e','#8a833c','#a59c50','#bdb468'],
 };
 const THATCHY = { thatch: 1, palm: 1 };
@@ -1587,8 +1788,8 @@ function drawRoof(ctx, r, P){
     { const ex = pts[0], fx = pts[1], mx = (ex[0] + fx[0]) / 2, my = (ex[1] + fx[1]) / 2, rx = (A[0] + B[0]) / 2, ry = (A[1] + B[1]) / 2, gr = ctx.createLinearGradient(rx, ry, mx, my);
       gr.addColorStop(0, col(Math.min(1, t + .1))); gr.addColorStop(1, col(Math.max(0, t - .1))); ctx.fillStyle = gr; ctx.fillRect(x, y, w, h); }
     const step = P * (THATCHY[r.mat] ? .08 : .17);
-    if (r.mat === 'kawara' || r.mat === 'copper'){ // rows of round tiles / standing seams running from ridge to eave
-      const sp = P * (r.mat === 'kawara' ? .13 : .3), lw = Math.max(.8, P / (r.mat === 'kawara' ? 40 : 60));
+    if (r.mat === 'kawara' || r.mat === 'copper' || r.mat === 'ironsheet'){ // round tiles / standing seams / corrugations running from ridge to eave
+      const sp = P * (r.mat === 'kawara' ? .13 : r.mat === 'ironsheet' ? .09 : .3), lw = Math.max(.8, P / (r.mat === 'kawara' ? 40 : 60));
       for (let q = (dir === 'h' ? X0 : Y0); q < (dir === 'h' ? X1 : Y1); q += sp){
         ctx.strokeStyle = 'rgba(0,0,0,.26)'; ctx.lineWidth = lw; ctx.beginPath(); dir === 'h' ? (ctx.moveTo(q, Y0), ctx.lineTo(q, Y1)) : (ctx.moveTo(X0, q), ctx.lineTo(X1, q)); ctx.stroke();
         ctx.strokeStyle = col(Math.min(1, t + .25), r.mat === 'kawara' ? .55 : .4); ctx.lineWidth = lw * (r.mat === 'kawara' ? 1.6 : .8); ctx.beginPath();
@@ -1779,6 +1980,7 @@ function renderFull0(m, P, withGrid, opt = {}){
   for (const l of Ls){ const lv = layerView(m, l);
     const tc = document.createElement('canvas'); tc.width = c.width; tc.height = c.height; const tx = tc.getContext('2d');
     for (let y = 0; y < m.rows; y += strip) for (let x = 0; x < m.cols; x += strip) renderRegion(lv, tx, P, x, y, Math.min(m.cols, x + strip), Math.min(m.rows, y + strip));
+    if (l === m.layers[0]) drawRelief(tx, m, P);
     drawStructure(lv, tx, P, { secret: !!opt.dm });
     ctx.globalAlpha = l.opacity; ctx.drawImage(tc, 0, 0); ctx.globalAlpha = 1; }
   if (opt.tod && opt.tod !== 'day'){ const nt = document.createElement('canvas'); nt.width = c.width; nt.height = c.height; const nx = nt.getContext('2d');
@@ -1842,18 +2044,61 @@ function setupCanvas(){
   mapCanvas.width = map.cols * viewP; mapCanvas.height = map.rows * viewP;
   mapCanvas.style.width = mapCanvas.width + 'px'; mapCanvas.style.height = mapCanvas.height + 'px';
   structCanvas.width = mapCanvas.width; structCanvas.height = mapCanvas.height;
-  for (const cv of [nightCanvas, glowCanvas, labelCanvas]){ cv.width = mapCanvas.width; cv.height = mapCanvas.height; cv.style.width = mapCanvas.style.width; cv.style.height = mapCanvas.style.height; }
+  for (const cv of [nightCanvas, glowCanvas, labelCanvas, reliefCanvas]){ cv.width = mapCanvas.width; cv.height = mapCanvas.height; cv.style.width = mapCanvas.style.width; cv.style.height = mapCanvas.style.height; }
   structCanvas.style.width = mapCanvas.style.width; structCanvas.style.height = mapCanvas.style.height;
   for (const [, c] of LV){ c.t.width = c.s.width = 1; }
-  syncLayerDOM(); renderAllLayers(); drawStructView();
+  syncLayerDOM(); renderAllLayers(); drawStructView(); drawReliefView();
 }
 const nightCanvas = $('nightCanvas'), glowCanvas = $('glowCanvas'), labelCanvas = $('labelCanvas');
+/* ---------- ground height: one level per square, 5 ft a step (−3 … +6) ---------- */
+const H_MIN = -3, H_MAX = 6;
+const hasHeights = m => !!(m.hgt && m.hgt.some(v => v));
+function drawRelief(ctx, m, P){
+  const H = m.hgt; if (!H || !hasHeights(m) || H.length !== m.cols * m.rows) return;
+  const C = m.cols, Rw = m.rows, cell = (a, b) => H[clamp(b, 0, Rw - 1) * C + clamp(a, 0, C - 1)], hb = (x, y) => cell(Math.floor(x), Math.floor(y));
+  const e = .17, hs = (x, y) => (hb(x - e, y - e) + hb(x + e, y - e) + hb(x - e, y + e) + hb(x + e, y + e)) / 4;   // steps soften into short banks
+  let maxH = H_MIN; for (const v of H) if (v > maxH) maxH = v;
+  const SS = C * Rw > 20000 ? 3 : C * Rw > 6000 ? 4 : 6, W = C * SS, Hh = Rw * SS, img = new ImageData(W, Hh), d = img.data;
+  const sl = Math.max(.02, Math.hypot(SUN.dx, SUN.dy)), lx = -SUN.dx / sl, ly = -SUN.dy / sl, lz = 1.1, ln = Math.hypot(lx, ly, lz), Lx = lx / ln, Ly = ly / ln, Lz = lz / ln;
+  const kStep = Math.min(1, .18 / sl);
+  for (let j = 0; j < Hh; j++) for (let i = 0; i < W; i++){
+    const x = (i + .5) / SS, y = (j + .5) / SS, g = hb(x, y);
+    const nx = -(hs(x + e, y) - hs(x - e, y)) / (2 * e) * .35, ny = -(hs(x, y + e) - hs(x, y - e)) / (2 * e) * .35, nn = Math.hypot(nx, ny, 1);
+    let v = (nx * Lx + ny * Ly + Lz) / nn - Lz + g * .03;
+    for (let k = kStep; k <= maxH - g; k += kStep) if (hb(x - SUN.dx * k, y - SUN.dy * k) - g >= k){ v -= SUN.a * .6; break; }
+    const p = (j * W + i) * 4; if (v < 0){ d[p + 3] = Math.min(.68, -v * 1.15) * 255; } else { d[p] = d[p + 1] = d[p + 2] = 255; d[p + 3] = Math.min(.22, v * .8) * 255; } }
+  const tc = document.createElement('canvas'); tc.width = W; tc.height = Hh; tc.getContext('2d').putImageData(img, 0, 0);
+  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(tc, 0, 0, C * P, Rw * P);
+  // cliffs: a drop of 10 ft or more. The south-facing face shows (oblique view); other edges get a hard rim.
+  for (let r = 0; r < Rw; r++) for (let c = 0; c < C; c++){ const h = H[r * C + c], rnd = mulberry(r * 7919 + c * 131 + 17);
+    if (r + 1 < Rw){ const drop = h - H[(r + 1) * C + c]; if (drop >= 2){ const x = c * P, y = (r + 1) * P, fh = Math.min(.9, drop * .16) * P;
+      const g = ctx.createLinearGradient(0, y, 0, y + fh); g.addColorStop(0, 'rgba(128,118,104,.96)'); g.addColorStop(.35, 'rgba(92,84,74,.96)'); g.addColorStop(1, 'rgba(34,30,27,.96)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + P, y); const n = 4; for (let q = n; q >= 0; q--) ctx.lineTo(x + P * q / n, y + fh * (.86 + rnd() * .2)); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(20,16,12,.35)'; ctx.lineWidth = Math.max(.7, P / 60); ctx.beginPath(); for (let q = 0; q < 4; q++){ const sx = x + P * (.1 + rnd() * .8); ctx.moveTo(sx, y + fh * .1); ctx.lineTo(sx + (rnd() - .5) * P * .06, y + fh * (.6 + rnd() * .3)); } ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,248,228,.45)'; ctx.lineWidth = Math.max(1, P / 32); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + P, y); ctx.stroke(); } }
+    const rim = (x0, y0, x1, y1) => { ctx.strokeStyle = 'rgba(10,8,6,.55)'; ctx.lineWidth = Math.max(1, P / 14); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
+    if (c + 1 < C && Math.abs(h - H[r * C + c + 1]) >= 2) rim((c + 1) * P, r * P, (c + 1) * P, (r + 1) * P);
+    if (r + 1 < Rw && H[(r + 1) * C + c] - h >= 2) rim(c * P, (r + 1) * P, (c + 1) * P, (r + 1) * P); }
+  ctx.restore();
+}
+const reliefCanvas = $('reliefCanvas');
+let reliefRaf = false;
+function drawReliefView(){ const x = reliefCanvas.getContext('2d'); x.clearRect(0, 0, reliefCanvas.width, reliefCanvas.height); if (map.layers[0].visible) drawRelief(x, map, viewP); }
+function reliefChanged(){ if (!reliefRaf){ reliefRaf = true; requestAnimationFrame(() => { reliefRaf = false; drawReliefView(); }); } touchSave(); }
+function ensureHgt(){ if (!map.hgt || map.hgt.length !== map.cols * map.rows) map.hgt = new Int8Array(map.cols * map.rows); return map.hgt; }
+function paintHeight(cx, cy, rad, lv){ const H = ensureHgt(); let ch = false; const r2 = Math.max(rad, .5);
+  for (let r = Math.max(0, Math.floor(cy - r2)); r < Math.min(map.rows, Math.ceil(cy + r2)); r++) for (let c = Math.max(0, Math.floor(cx - r2)); c < Math.min(map.cols, Math.ceil(cx + r2)); c++){
+    const inside = Math.hypot(c + .5 - cx, r + .5 - cy) <= r2 || (c === Math.floor(cx) && r === Math.floor(cy)); if (inside && H[r * map.cols + c] !== lv){ H[r * map.cols + c] = lv; ch = true; } }
+  if (ch) reliefChanged(); }
+$('hLevel').oninput = () => { $('hOut').textContent = heightLabel(+$('hLevel').value); };
+function heightLabel(v){ return v === 0 ? 'Ground level' : (v > 0 ? '+' : '−') + Math.abs(v) * 5 + ' ft' + (v > 0 ? ' (raised)' : ' (sunken)'); }
+
 function drawStructView(){
   for (const l of map.layers){ const cv = layerCanvases(l).s, x = cv.getContext('2d'); x.clearRect(0, 0, cv.width, cv.height); if (l.visible) drawStructure(layerView(map, l), x, viewP, { secret: $('showSecret').checked }); }
   const lx = labelCanvas.getContext('2d'); lx.clearRect(0, 0, labelCanvas.width, labelCanvas.height); if ($('showLabels').checked) drawLabels(lx, shownLayers(map).flatMap(l => l.struct.labels || []), viewP);
   drawNightView(); }
 function drawNightView(){ const tod = map.tod || 'day', lit = tod !== 'day'; view.classList.toggle('lit', lit); $('todSel').value = tod;
-  const f = lit ? `saturate(${TOD[tod].sat})` : ''; for (const cv of [mapCanvas, structCanvas]) cv.style.filter = f; for (const [, c] of LV){ c.t.style.filter = c.s.style.filter = f; }
+  const f = lit ? `saturate(${TOD[tod].sat})` : ''; for (const cv of [mapCanvas, reliefCanvas, structCanvas]) cv.style.filter = f; for (const [, c] of LV){ c.t.style.filter = c.s.style.filter = f; }
   if (!lit) return;
   const L = buildNight(map, viewP, mapCanvas.width, mapCanvas.height, map.nightStr ?? .7, map.lightRad ?? 1, true, tod);
   for (const [cv, src] of [[nightCanvas, L.dark], [glowCanvas, L.glow]]){ const x = cv.getContext('2d'); x.clearRect(0, 0, cv.width, cv.height); x.drawImage(src, 0, 0); } }
@@ -1869,7 +2114,7 @@ function markDirty(x0, y0, x1, y1){
   touchSave();
 }
 function applyView(){ const tr = `translate(${panX}px,${panY}px) scale(${zoom / viewP})`;
-  for (const cv of [mapCanvas, structCanvas, nightCanvas, glowCanvas, labelCanvas]) cv.style.transform = tr; for (const [, c] of LV){ c.t.style.transform = c.s.style.transform = tr; } $('stZoom').textContent = `Zoom ${Math.round(zoom / map.px * 100)}%`; drawOverlay(); }
+  for (const cv of [mapCanvas, reliefCanvas, structCanvas, nightCanvas, glowCanvas, labelCanvas]) cv.style.transform = tr; for (const [, c] of LV){ c.t.style.transform = c.s.style.transform = tr; } $('stZoom').textContent = `Zoom ${Math.round(zoom / map.px * 100)}%`; drawOverlay(); }
 function fit(){ const w = view.clientWidth, h = view.clientHeight; zoom = Math.min(w / map.exW, h / map.exH) * 0.92; panX = (w - map.exW * zoom) / 2; panY = (h - map.exH * zoom) / 2; applyView(); }
 function resizeOverlay(){ const dpr = devicePixelRatio || 1; overlay.width = view.clientWidth * dpr; overlay.height = view.clientHeight * dpr; overlay.style.width = view.clientWidth + 'px'; overlay.style.height = view.clientHeight + 'px'; octx.setTransform(dpr, 0, 0, dpr, 0, 0); drawOverlay(); }
 const toCell = (sx, sy) => [(sx - panX) / zoom, (sy - panY) / zoom];
@@ -2043,6 +2288,19 @@ function nextBadge(){ let n = 0; for (const l of map.struct.labels) if (isBadge(
 function hitObject(cx, cy){ const o = map.struct.objects; let best = null, bd = 1e9;
   for (let i = o.length - 1; i >= 0; i--){ const b = o[i], st = STAMPS[b.t], r = Math.max(.3, Math.max(st.w, st.h) * b.s * .42), d = Math.hypot(cx - b.x, cy - b.y); if (d < r && d / r < bd){ bd = d / r; best = i; } }
   return best; }
+function hitObjectAnyLayer(cx, cy){
+  let i = hitObject(cx, cy); if (i !== null) return i;
+  for (const l of map.layers.slice().reverse()){ if (!l.visible || l.id === map.activeLayer) continue;
+    const keep = map.struct; map.struct = l.struct; i = hitObject(cx, cy); map.struct = keep;
+    if (i !== null){ setActiveLayer(l.id); return i; } }
+  return null; }
+function hitMovable(cx, cy){ // what the Select tool can pick up, top-most first
+  if ($('showLabels').checked){ const i = hitLabel(cx, cy); if (i !== null) return { kind: 'labels', i }; }
+  const i = hitObjectAnyLayer(cx, cy); if (i !== null) return { kind: 'objects', i };
+  const st = map.struct;
+  for (let j = (st.roofs || []).length - 1; j >= 0; j--){ const r = st.roofs[j]; if (SHOW_TOP && cx >= r.x0 && cx <= r.x1 && cy >= r.y0 && cy <= r.y1) return { kind: 'roofs', i: j }; }
+  for (let j = st.stairs.length - 1; j >= 0; j--){ const r = st.stairs[j]; if (cx >= r.x0 && cx <= r.x1 && cy >= r.y0 && cy <= r.y1) return { kind: 'stairs', i: j }; }
+  return null; }
 function hitLabel(cx, cy){ const L = map.struct.labels; for (let i = L.length - 1; i >= 0; i--){ const l = L[i];
     if (isBadge(l.text) ? Math.hypot(cx - l.x, cy - l.y) < l.size * .8 : Math.abs(cx - l.x) < l.text.length * l.size * .3 + .15 && Math.abs(cy - l.y) < l.size * .6) return i; } return null; }
 function hitStruct(cx, cy){
@@ -2111,9 +2369,9 @@ function rectBounds(rd){ const a = [Math.min(rd.a[0], rd.b[0]), Math.min(rd.a[1]
   return [[clamp(a[0], 0, map.cols), clamp(a[1], 0, map.rows)], [clamp(b[0], 0, map.cols), clamp(b[1], 0, map.rows)]]; }
 
 /* ---------- undo ---------- */
-const snapState = copy => ({ lid: map.activeLayer, labels: copy ? map.labels.slice() : map.labels, struct: JSON.stringify(map.struct) });
+const snapState = copy => ({ lid: map.activeLayer, labels: copy ? map.labels.slice() : map.labels, struct: JSON.stringify(map.struct), hgt: map.hgt ? (copy ? map.hgt.slice() : map.hgt) : null });
 function restoreState(s){ selObj = null; const l = map.layers.find(x => x.id === s.lid); if (!l) return;
-  l.labels = s.labels; l.struct = JSON.parse(s.struct); setActiveLayer(l.id); renderLayer(l, 0, 0, map.cols, map.rows); drawStructView(); touchSave(); updUndo(); }
+  l.labels = s.labels; l.struct = JSON.parse(s.struct); if (s.hgt !== undefined && (s.hgt || map.hgt)){ map.hgt = s.hgt; drawReliefView(); } setActiveLayer(l.id); renderLayer(l, 0, 0, map.cols, map.rows); drawStructView(); touchSave(); updUndo(); }
 function pushUndo(){ undoStack.push(snapState(true)); if (undoStack.length > 60) undoStack.shift(); redoStack = []; updUndo(); }
 function undo(){ if (!undoStack.length) return; wallDraft = null; redoStack.push(snapState(false)); restoreState(undoStack.pop()); }
 function redo(){ if (!redoStack.length) return; wallDraft = null; undoStack.push(snapState(false)); restoreState(redoStack.pop()); }
@@ -2161,6 +2419,9 @@ view.addEventListener('pointerdown', e => {
       paintCells(Math.floor(cx), Math.floor(cy), Math.floor(cx) + 1, Math.floor(cy) + 1, tid); drag = { mode: 'cell', tid }; break;
     case 'rect': rectDrag = { a: [Math.floor(cx), Math.floor(cy)], b: [Math.floor(cx), Math.floor(cy)] }; drag = { mode: 'rect' }; drawOverlay(); break;
     case 'fill': pushUndo(); floodFill(cx, cy, tid); break;
+    case 'height': { const lvEl = $('hLevel');
+      if (e.shiftKey){ const H = ensureHgt(), c = Math.floor(cx), r = Math.floor(cy); if (c >= 0 && r >= 0 && c < map.cols && r < map.rows){ lvEl.value = H[r * map.cols + c]; $('hOut').textContent = heightLabel(+lvEl.value); } break; }
+      pushUndo(); paintHeight(cx, cy, brushRad(e), +lvEl.value); drag = { mode: 'hpaint', lx: cx, ly: cy }; break; }
     case 'pick': { const W = map.cols * R, x = Math.floor(cx * R), y = Math.floor(cy * R); if (x >= 0 && y >= 0 && x < W && y < map.rows * R){ let v = map.labels[y * W + x]; if (v === 255) for (const l of [...shownLayers(map)].reverse()){ if (l.labels[y * W + x] !== 255){ v = l.labels[y * W + x]; break; } } if (v !== 255){ selectTerrain(v); setTool('brush'); } } break; }
     case 'measure': { const p0 = isHex(map) ? pixelToHex(map, cx, cy) : [Math.floor(cx), Math.floor(cy)]; if (!p0) break; ruler = { a: p0, b: p0.slice() }; drag = { mode: 'measure' }; drawOverlay(); break; }
     case 'room': if ($('roomShape').value === 'poly'){ const p = snapPt(cx, cy, mods, roomDraft && roomDraft.pts[roomDraft.pts.length - 1]);
@@ -2181,14 +2442,20 @@ view.addEventListener('pointerdown', e => {
     case 'door': { const ed = nearestEdge(cx, cy); if (!ed) break; pushUndo(); const st = map.struct, nd = { ...ed, type: $('doorType').value };
       const i = st.doors.findIndex(d => d.x === ed.x && d.y === ed.y && d.o === ed.o); if (i >= 0) st.doors[i] = nd; else st.doors.push(nd); structChanged(); break; }
     case 'xstruct': { drag = { mode: 'xstruct', pushed: false }; eraseStructAt(cx, cy); break; }
-    case 'stamp': { const [x, y] = objPos(cx, cy); if (x < 0 || y < 0 || x > map.cols || y > map.rows) break; pushUndo(); placeObject(curStamp, x, y, objSize(), preRot, preVar); rollPre(); structChanged(); drawOverlay(); break; }
+    case 'stamp': { const [x, y] = objPos(cx, cy); if (x < 0 || y < 0 || x > map.cols || y > map.rows) break;
+      { const hi = hitObject(cx, cy); if (hi !== null){ const o = map.struct.objects[hi]; drag = { mode: 'stampHold', i: hi, sx: cx, sy: cy, x, y, ox: cx - o.x, oy: cy - o.y }; break; } }
+      pushUndo(); placeObject(curStamp, x, y, objSize(), preRot, preVar); rollPre(); structChanged(); drawOverlay(); break; }
     case 'scatter': pushUndo(); scatterAt(cx, cy); drag = { mode: 'scatter', lx: cx, ly: cy }; break;
     case 'label': { const i = $('showLabels').checked ? hitLabel(cx, cy) : null;
       if (i !== null){ const l = map.struct.labels[i]; drag = { mode: 'label', i, ox: cx - l.x, oy: cy - l.y, moved: false }; break; }
       if (cx < 0 || cy < 0 || cx > map.cols || cy > map.rows) break;
       const txt = prompt('Label text (a number like 1, 2, 12a makes a room badge):', nextBadge()); if (txt && txt.trim()){ pushUndo(); map.struct.labels.push({ x: +cx.toFixed(2), y: +cy.toFixed(2), text: txt.trim().slice(0, 80), size: +$('labelSize').value }); $('showLabels').checked = true; drawStructView(); touchSave(); }
       break; }
-    case 'select': { selObj = hitObject(cx, cy); if (selObj !== null){ const o = map.struct.objects[selObj]; drag = { mode: 'move', ox: cx - o.x, oy: cy - o.y, pushed: false }; showSel(); } else $('stTool').textContent = TOOL_NAMES.select; drawOverlay(); break; }
+    case 'select': { const h = hitMovable(cx, cy); selObj = null;
+      if (h && h.kind === 'objects'){ selObj = h.i; const o = map.struct.objects[selObj]; drag = { mode: 'move', ox: cx - o.x, oy: cy - o.y, pushed: false }; showSel(); }
+      else if (h && h.kind === 'labels'){ const l = map.struct.labels[h.i]; drag = { mode: 'label', i: h.i, ox: cx - l.x, oy: cy - l.y, moved: false, noEdit: true }; }
+      else if (h){ drag = { mode: 'moveRect', kind: h.kind, i: h.i, sx: cx, sy: cy, r0: { ...map.struct[h.kind][h.i] }, pushed: false }; $('stTool').textContent = 'Moving ' + (h.kind === 'roofs' ? 'roof' : 'stairs'); }
+      else $('stTool').textContent = TOOL_NAMES.select; drawOverlay(); break; }
   }
   if (e.pointerType === 'touch'){ if (drag) Object.assign(drag, { touch: true, t0: performance.now(), u0 }); else drag = { mode: 'tap', touch: true, t0: performance.now(), u0 }; }
 });
@@ -2206,6 +2473,8 @@ view.addEventListener('pointermove', e => {
   else $('stCell').textContent = (ix >= 0 && iy >= 0 && ix < map.cols && iy < map.rows) ? `Square ${ix + 1}, ${iy + 1}  ·  ${+(ix * map.ft).toFixed(2)}–${+((ix + 1) * map.ft).toFixed(2)} ${map.unit}, ${+(iy * map.ft).toFixed(2)}–${+((iy + 1) * map.ft).toFixed(2)} ${map.unit}` : '—';
   if (drag){
     if (drag.mode === 'pan'){ panX = drag.px + sx - drag.sx; panY = drag.py + sy - drag.sy; applyView(); return; }
+    if (drag.mode === 'hpaint'){ const rad = brushRad(e), dist = Math.hypot(cx - drag.lx, cy - drag.ly), steps = Math.max(1, Math.ceil(dist / Math.max(.2, rad * .4)));
+      for (let i = 1; i <= steps; i++) paintHeight(drag.lx + (cx - drag.lx) * i / steps, drag.ly + (cy - drag.ly) * i / steps, rad, +$('hLevel').value); drag.lx = cx; drag.ly = cy; }
     if (drag.mode === 'paint'){
       const rad = brushRad(e), dist = Math.hypot(cx - drag.lx, cy - drag.ly), steps = Math.max(1, Math.ceil(dist / Math.max(0.05, rad * 0.35)));
       for (let i = 1; i <= steps; i++) paintCircle(drag.lx + (cx - drag.lx) * i / steps, drag.ly + (cy - drag.ly) * i / steps, rad, drag.tid);
@@ -2218,6 +2487,10 @@ view.addEventListener('pointermove', e => {
     if (drag.mode === 'circle' && circleDrag){ circleDrag.r = Math.round(Math.hypot(cx - circleDrag.c[0], cy - circleDrag.c[1]) * 2) / 2; }
     if (drag.mode === 'label'){ const l = map.struct.labels[drag.i]; if (l && (drag.moved || Math.hypot(cx - drag.ox - l.x, cy - drag.oy - l.y) > .15)){ if (!drag.moved){ pushUndo(); drag.moved = true; } l.x = +(cx - drag.ox).toFixed(2); l.y = +(cy - drag.oy).toFixed(2); structChanged(); } }
     if (drag.mode === 'scatter' && Math.hypot(cx - drag.lx, cy - drag.ly) > +$('brushSize').value * .25){ scatterAt(cx, cy); drag.lx = cx; drag.ly = cy; }
+    if (drag.mode === 'stampHold' && Math.hypot(cx - drag.sx, cy - drag.sy) > .2){ selObj = drag.i; Object.assign(drag, { mode: 'move', pushed: false, fromStamp: true }); $('stTool').textContent = 'Moving ' + STAMPS[map.struct.objects[selObj].t].name; }
+    if (drag.mode === 'moveRect'){ const r = map.struct[drag.kind][drag.i], dx = Math.round(cx - drag.sx), dy = Math.round(cy - drag.sy), w = drag.r0.x1 - drag.r0.x0, h = drag.r0.y1 - drag.r0.y0;
+      if (r && (dx || dy || drag.pushed)){ if (!drag.pushed){ pushUndo(); drag.pushed = true; }
+        r.x0 = clamp(drag.r0.x0 + dx, 0, map.cols - w); r.y0 = clamp(drag.r0.y0 + dy, 0, map.rows - h); r.x1 = r.x0 + w; r.y1 = r.y0 + h; structChanged(); } }
     if (drag.mode === 'move' && selObj !== null){ if (!drag.pushed){ pushUndo(); drag.pushed = true; selObj = selObj; }
       const o = map.struct.objects[selObj]; if (o){ const [x, y] = objPos(cx - drag.ox, cy - drag.oy); o.x = +clamp(x, 0, map.cols).toFixed(3); o.y = +clamp(y, 0, map.rows).toFixed(3); structChanged(); } }
     if (drag.mode === 'measure'){ if (isHex(map)){ const h = pixelToHex(map, cx, cy); if (h) ruler.b = h; } else ruler.b = [clamp(ix, 0, map.cols - 1), clamp(iy, 0, map.rows - 1)]; }
@@ -2226,6 +2499,10 @@ view.addEventListener('pointermove', e => {
 });
 function endDrag(){
   if (!drag) return;
+  if (drag.mode === 'stampHold'){ const d = drag; drag = null; pushUndo(); placeObject(curStamp, d.x, d.y, objSize(), preRot, preVar); rollPre(); structChanged(); drawOverlay(); return; }
+  if (drag.mode === 'move' && drag.fromStamp){ drag = null; selObj = null; $('stTool').textContent = TOOL_NAMES.stamp; drawOverlay(); return; }
+  if (drag.mode === 'moveRect'){ drag = null; $('stTool').textContent = TOOL_NAMES.select; return; }
+  if (drag.mode === 'label' && !drag.moved && drag.noEdit){ drag = null; return; }
   if (drag.mode === 'label' && !drag.moved){ const l = map.struct.labels[drag.i], d = drag; drag = null;
     const txt = prompt('Edit label (leave empty to delete):', l.text); if (txt !== null){ pushUndo(); if (txt.trim()) { l.text = txt.trim().slice(0, 80); l.size = +$('labelSize').value; } else map.struct.labels.splice(d.i, 1); drawStructView(); touchSave(); } return; }
   if (drag.mode === 'rect' && rectDrag){ const [a, b] = rectBounds(rectDrag); if (b[0] > a[0] && b[1] > a[1]){ pushUndo();
@@ -2256,14 +2533,14 @@ view.addEventListener('wheel', e => {
 }, { passive: false });
 
 /* ---------- UI: tools, terrains, settings ---------- */
-const TOOL_NAMES = { brush: 'Terrain brush', cell: 'Cell paint', rect: 'Rectangle fill', fill: 'Flood fill', eraser: 'Eraser', pick: 'Picker', measure: 'Ruler', pan: 'Pan',
+const TOOL_NAMES = { height: 'Ground height — paint with the brush size · 5 ft a step · drops of 10 ft or more become cliffs · Shift-click picks a height', brush: 'Terrain brush', cell: 'Cell paint', rect: 'Rectangle fill', fill: 'Flood fill', eraser: 'Eraser', pick: 'Picker', measure: 'Ruler', pan: 'Pan',
   room: 'Room — rectangle: drag · polygon: click corners, click the first one (or Enter) to close · round: drag from the centre · floor uses the selected terrain',
   wall: 'Wall — click corners; click the last point again, right-click or Esc to finish · Shift: straight/45° · Alt: quarter-square snap',
   door: 'Door — click a square edge; clicking an existing door replaces it',
   roof: 'Roof — drag over a building; hide the layer to see inside',
   label: 'Label — click to add (numbers become room badges), click a label to edit, drag to move · labels export only on the DM map unless you tick Include labels',
-  stamp: 'Place object — click to place · , and . rotate · Alt-free / snap option in panel', scatter: 'Scatter — paint objects with the brush size and density', select: 'Select — click an object, drag to move · Del delete · , . rotate · - = resize · Ctrl+D copy', stairs: 'Stairs — drag in the direction they go down', xstruct: 'Remove — click or drag over walls, doors, stairs' };
-function setTool(t){ setTimeout(updateLightRow, 0); if (t !== 'wall') wallDraft = null; if (t !== 'room') roomDraft = null; if (t !== 'select') selObj = null; tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); $('stTool').textContent = TOOL_NAMES[t]; if (t !== 'measure') ruler = null; view.style.cursor = t === 'pan' ? 'grab' : ''; drawOverlay(); }
+  stamp: 'Place object — tap to place · drag an object that is already there to move it · , and . rotate', scatter: 'Scatter — paint objects with the brush size and density', select: 'Select & move — drag any object, label, roof or stairs (on any visible layer) · arrows nudge (Shift: 1 square) · Del delete · , . rotate · - = resize · Ctrl+D copy', stairs: 'Stairs — drag in the direction they go down', xstruct: 'Remove — click or drag over walls, doors, stairs' };
+function setTool(t){ setTimeout(updateLightRow, 0); $('heightRow').style.display = t === 'height' ? '' : 'none'; if (t !== 'wall') wallDraft = null; if (t !== 'room') roomDraft = null; if (t !== 'select') selObj = null; tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); $('stTool').textContent = TOOL_NAMES[t]; if (t !== 'measure') ruler = null; view.style.cursor = t === 'pan' ? 'grab' : ''; drawOverlay(); }
 document.querySelectorAll('#tools button').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 
 function buildTerrainPanel(){
@@ -2300,6 +2577,7 @@ const PACKS = {
   caves:  { name: 'Underdark & caverns', cats: ['cave'], terrains: ['wetrock', 'crystal', 'cavemud', 'biomoss'] },
   jungle: { name: 'Jungle & coast', cats: ['jungle'], terrains: ['jungle', 'beach', 'reef', 'mangrove'] },
   ships:  { name: 'Ships & docks', cats: ['ship'], terrains: ['deck', 'pier', 'quay'] },
+  steam:  { name: 'Steampunk', cats: ['steam'], terrains: ['brass', 'ironplate', 'grating', 'soot'] },
 };
 const packsOff = () => new Set((lsGet('md-packs-off') || '').split('|').filter(Boolean));
 const hiddenCats = () => { const off = packsOff(); return new Set(Object.entries(PACKS).filter(([k]) => off.has(k)).flatMap(([, p]) => p.cats)); };
@@ -2327,7 +2605,7 @@ function buildLayerPanel(){
     d.innerHTML = `<input type="checkbox" ${l.visible ? 'checked' : ''} title="Show / hide"><span class="nm"></span><span class="ctl">${base ? '' : '<button data-a="up" title="Move up">▲</button><button data-a="dn" title="Move down">▼</button><button data-a="dm" title="DM only">DM</button><button data-a="del" title="Delete layer">×</button>'}<button data-a="ren" title="Rename">✎</button></span>${base ? '' : `<input type="range" min="0.1" max="1" step="0.05" value="${l.opacity}" title="Opacity">`}`;
     d.querySelector('.nm').textContent = l.name; if (l.dm){ const sm = document.createElement('small'); sm.textContent = 'DM only'; d.querySelector('.nm').appendChild(sm); }
     d.onclick = ev => { if (ev.target.closest('input,button')) return; setActiveLayer(l.id); };
-    d.querySelector('input[type=checkbox]').onchange = ev => { l.visible = ev.target.checked; syncLayerDOM(); drawStructView(); touchSave(); };
+    d.querySelector('input[type=checkbox]').onchange = ev => { l.visible = ev.target.checked; syncLayerDOM(); drawStructView(); drawReliefView(); touchSave(); };
     const rg = d.querySelector('input[type=range]'); if (rg) rg.oninput = () => { l.opacity = +rg.value; syncLayerDOM(); touchSave(); };
     d.querySelectorAll('button').forEach(b => b.onclick = () => { const a = b.dataset.a, L = map.layers;
       if (a === 'ren'){ const n = prompt('Layer name', l.name); if (n && n.trim()){ l.name = n.trim().slice(0, 40); buildLayerPanel(); touchSave(); } return; }
@@ -2392,7 +2670,7 @@ $('showSecret').onchange = drawStructView;
 $('objSize').oninput = () => { syncOutputs(); drawOverlay(); }; $('density').oninput = syncOutputs;
 $('tintObj').onchange = drawOverlay;
 $('showLabels').onchange = drawStructView;
-function setTod(t){ map.tod = t; setSun(t); drawStructView(); touchSave(); }
+function setTod(t){ map.tod = t; setSun(t); drawStructView(); drawReliefView(); touchSave(); }
 function toggleNight(){ setTod(TOD_ORDER[(TOD_ORDER.indexOf(map.tod || 'day') + 1) % TOD_ORDER.length]); }
 $('todSel').onchange = () => setTod($('todSel').value);
 function applySeason(){ SEASON = map.season || 'summer'; $('seasonSel').value = SEASON; renderAllLayers(); drawStructView(); buildStampPanel(); }
@@ -2454,7 +2732,7 @@ function updateInfo(){
 }
 
 /* ---------- keyboard ---------- */
-const KEYS = { b: 'brush', c: 'cell', r: 'rect', f: 'fill', e: 'eraser', i: 'pick', m: 'measure', h: 'pan', w: 'wall', o: 'room', d: 'door', t: 'stairs', x: 'xstruct', s: 'stamp', a: 'scatter', v: 'select', l: 'label', u: 'roof' };
+const KEYS = { b: 'brush', c: 'cell', r: 'rect', f: 'fill', e: 'eraser', i: 'pick', m: 'measure', h: 'pan', w: 'wall', o: 'room', d: 'door', t: 'stairs', x: 'xstruct', s: 'stamp', a: 'scatter', v: 'select', l: 'label', u: 'roof', g: 'height' };
 addEventListener('keydown', e => {
   if (e.target.matches('input[type=text],input[type=number],input.name,select') || document.querySelector('dialog[open]')) return;
   const k = e.key.toLowerCase();
@@ -2470,6 +2748,9 @@ addEventListener('keydown', e => {
       structChanged(); drawOverlay(); showSel(); return; }
     if (tool === 'stamp' && (k === ',' || k === '.')){ preRot += (k === '.' ? 1 : -1) * Math.PI / 12; drawOverlay(); return; }
   }
+  if (selObj !== null && map.struct.objects[selObj] && /^arrow/.test(k) && !e.ctrlKey && !e.metaKey){ e.preventDefault();
+    const o = map.struct.objects[selObj], st = e.shiftKey ? 1 : $('objSnap').checked ? .5 : .1, dx = k === 'arrowleft' ? -st : k === 'arrowright' ? st : 0, dy = k === 'arrowup' ? -st : k === 'arrowdown' ? st : 0;
+    if (!e.repeat) pushUndo(); o.x = +clamp(o.x + dx, 0, map.cols).toFixed(3); o.y = +clamp(o.y + dy, 0, map.rows).toFixed(3); structChanged(); drawOverlay(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.code === 'Space'){ spaceDown = true; view.style.cursor = 'grab'; e.preventDefault(); return; }
   if (KEYS[k]) { setTool(KEYS[k]); return; }
@@ -2496,9 +2777,9 @@ function lsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
 function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
 
 function thumbnail(){ const w = 220, h = Math.max(1, Math.round(w * map.rows / map.cols)); const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
-  for (const l of map.layers) if (l.visible){ const lc = layerCanvases(l); x.globalAlpha = l.opacity; x.drawImage(lc.t, 0, 0, w, h); x.drawImage(lc.s, 0, 0, w, h); } x.globalAlpha = 1; return c.toDataURL('image/jpeg', .75); }
+  for (const l of map.layers) if (l.visible){ const lc = layerCanvases(l); x.globalAlpha = l.opacity; x.drawImage(lc.t, 0, 0, w, h); if (l === map.layers[0]) x.drawImage(reliefCanvas, 0, 0, w, h); x.drawImage(lc.s, 0, 0, w, h); } x.globalAlpha = 1; return c.toDataURL('image/jpeg', .75); }
 const extraLayers = m => (m.layers || []).slice(1).map(l => ({ id: l.id, name: l.name, visible: l.visible, opacity: l.opacity, dm: l.dm, labels: l.labels, struct: l.struct }));
-function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
+function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', hgt: hasHeights(m) ? m.hgt.slice() : null, created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
 let saveTimer = 0;
 function touchSave(){ dirtySave = true; $('stSave').textContent = 'Unsaved changes…'; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500); }
 async function saveNow(){
@@ -2514,7 +2795,7 @@ function migrateCustom(m, oldBase){
   if (m.base >= oldBase && m.base < oldBase + n) m.base = CUSTOM_BASE + m.base - oldBase;
   return m;
 }
-function fromRecord0(r){ return gridInit({ rules: r.rules === '5e' ? '5e' : '35', showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), created: r.created, thumb: r.thumb }); }
+function fromRecord0(r){ return gridInit({ rules: r.rules === '5e' ? '5e' : '35', showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), hgt: r.hgt && r.hgt.length === r.cols * r.rows ? new Int8Array(r.hgt) : null, created: r.created, thumb: r.thumb }); }
 
 function openMap(m){
   map = gridInit(m); if (!map.layers) ensureLayers(map); map.custom = map.custom || []; LV.forEach(c => { c.t.remove(); c.s.remove(); }); LV.clear();
@@ -2593,7 +2874,7 @@ function cleanStruct(o){ const s = emptyStruct(); if (!o) return s; const num = 
   for (const r of o.roofs || []) s.roofs.push({ x0: num(r.x0), y0: num(r.y0), x1: num(r.x1), y1: num(r.y1), mat: ROOFMATS[r.mat] ? r.mat : 'tiles', ...(/^#[0-9a-f]{6}$/i.test(r.c || '') ? { c: r.c } : {}) });
   for (const t of o.stairs || []) s.stairs.push({ x0: num(t.x0), y0: num(t.y0), x1: num(t.x1), y1: num(t.y1), dir: 'nsew'.includes(t.dir) && t.dir ? t.dir : 's' });
   return s; }
-function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)),
+function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)), hgt: hasHeights(m) ? u8ToB64(new Uint8Array(m.hgt.buffer.slice(0))) : undefined,
   layers: extraLayers(m).map(l => ({ ...l, labels: u8ToB64(new Uint8Array(l.labels)) })) }; }
 function parseProject(o){
   if (!o || o.format !== 'map-drawing/1') throw new Error('Not a Map Drawing project file');
@@ -2609,7 +2890,7 @@ function parseProject(o){
   const base = Math.max(0, TERRAINS.findIndex((t, i) => i < BUILTIN && t.key === o.base));
   const grid = ['square', 'hexflat', 'hexpointy'].includes(o.grid) ? o.grid : 'square';
   if (grid !== 'square'){ const e = hexExtent(grid, o.hcols | 0, o.hrows | 0); if (!(o.hcols > 0 && o.hrows > 0) || Math.ceil(e.w - 1e-6) !== cols || Math.ceil(e.h - 1e-6) !== rows) throw new Error('Hex grid size does not match the map'); }
-  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, rules: o.rules === '5e' ? '5e' : '35', _extras: extras });
+  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, rules: o.rules === '5e' ? '5e' : '35', hgt: (() => { try { const b = o.hgt && b64ToU8(o.hgt); return b && b.length === cols * rows ? new Int8Array(b.buffer.slice(0)).map(v => clamp(v, H_MIN, H_MAX)) : null; } catch (e) { return null; } })(), _extras: extras });
 }
 $('bImport').onclick = () => $('fileIn').click();
 $('fileIn').onchange = async () => {
@@ -2649,7 +2930,7 @@ $('eJson').onclick = () => download(new Blob([JSON.stringify(projectJSON(map))],
     if (!m){ const all = await dbAll(); if (all.length){ all.sort((a, b) => b.updated - a.updated); m = fromRecord(all[0]); } } }
   if (!m) m = blankMap('Untitled map', 30, 20, 5, 0, { grid: 'square', px: 40 });
   openMap(m); if (db) saveNow();
-  window.__md = { get map(){ return map; }, renderFull, paintCells, paintCircle, floodFill, TERRAINS, structChanged, drawStructView };
+  window.__md = { toScr: (x, y) => toScr(x, y), layersApi: () => map.layers, setActiveLayer: id => setActiveLayer(id),  get map(){ return map; }, renderFull, paintCells, paintCircle, floodFill, TERRAINS, structChanged, drawStructView };
 })();
 </script>
 </body>
