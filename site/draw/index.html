@@ -197,7 +197,8 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <div class="row"><label for="brushSize">Size (squares)</label><output id="brushOut"></output></div>
     <input type="range" id="brushSize" min="0.25" max="8" step="0.25" value="1.5">
     <div id="heightRow" style="display:none"><div class="row"><label for="hLevel">Ground height</label><output id="hOut">Ground level</output></div>
-    <input type="range" id="hLevel" min="-3" max="6" step="1" value="1"></div>
+    <input type="range" id="hLevel" min="-3" max="6" step="1" value="1">
+    <div class="row"><label for="reliefSel">Height style</label><select id="reliefSel"><option value="cliffs">Natural cliffs</option><option value="contour">Map contours</option></select></div></div>
 
     <h3>Objects</h3>
     <div class="tabs" id="stampTabs"><button data-cat="nature" class="on">Nature</button><button data-cat="ruins">Ruins</button><button data-cat="dungeon">Dungeon</button><button data-cat="furniture">Furniture</button><button data-cat="camp">Camp</button><button data-cat="world">World map</button><button data-cat="japan">Japan</button><button data-cat="cave">Caverns</button><button data-cat="jungle">Jungle</button><button data-cat="ship">Ships</button><button data-cat="steam">Steampunk</button></div>
@@ -212,8 +213,8 @@ dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
     <input type="range" id="density" min="0.1" max="1.5" step="0.05" value="0.7">
 
     <h3>Structure</h3>
-    <div class="row"><label for="wallMat">Wall material</label><select id="wallMat"><option value="stone">Stone</option><option value="wood">Wood</option><option value="cave">Rough cave</option><option value="hull">Ship hull (tarred)</option><option value="bamboo">Bamboo</option><option value="brasswall">Brass plate</option><option value="ironwall">Riveted iron</option></select></div>
-    <div class="row"><label for="wallTh">Wall thickness</label><select id="wallTh"><option value="0.15">Thin</option><option value="0.25" selected>Normal</option><option value="0.4">Thick</option></select></div>
+    <div class="row"><label for="wallMat">Wall material</label><select id="wallMat"><option value="stone">Stone</option><option value="wood">Wood</option><option value="cave">Natural cave</option><option value="rampart">Fortress wall-walk</option><option value="hull">Ship hull (tarred)</option><option value="bamboo">Bamboo</option><option value="brasswall">Brass plate</option><option value="ironwall">Riveted iron</option></select></div>
+    <div class="row"><label for="wallTh">Wall thickness</label><select id="wallTh"><option value="0.15">Thin</option><option value="0.25" selected>Normal</option><option value="0.4">Thick</option><option value="1">Wall-walk, 1 square</option><option value="2">Wall-walk, 2 squares</option></select></div>
     <div class="row"><label for="roomShape">Room shape</label><select id="roomShape"><option value="rect">Rectangle (drag)</option><option value="poly">Polygon (click corners)</option><option value="circle">Round (drag radius)</option></select></div>
     <div class="row"><label for="roofMat">Roof</label><select id="roofMat"><option value="tiles">Clay tiles</option><option value="slate">Slate</option><option value="thatch">Thatch</option><option value="shingles">Wood shingles</option><option value="palm">Palm thatch</option><optgroup label="Japan"><option value="kawara">Kawara tiles</option><option value="hiwada">Cypress bark</option><option value="copper">Copper (verdigris)</option></optgroup><optgroup label="Steampunk"><option value="ironsheet">Corrugated iron</option><option value="copper">Copper (verdigris)</option></optgroup></select></div>
     <div class="row"><label for="doorType">Door type</label><select id="doorType"><option value="door">Door</option><option value="double">Double door</option><option value="secret">Secret door</option><option value="portcullis">Portcullis</option><option value="window">Window</option><option value="opening">Open archway</option><option value="shoji">Shoji screen</option></select></div>
@@ -400,14 +401,14 @@ const TERRAINS = [
   { key:'deck',     name:'Ship deck',     prio:9.3, soft:.02, ppc:3, gen:'wood', ramp:['#2e1c0c','#4a2f16','#664220','#82552b','#9c6a38','#b58148'], edge:{ color:'rgba(10,5,2,.75)', w:.08 } },
   { key:'pier',     name:'Pier boards',   prio:9.25, soft:.02, gen:'pier', ramp:['#121212','#353431','#504d48','#6a665f','#848077','#a09a90'], edge:{ color:'rgba(5,5,5,.7)', w:.08 } },
   { key:'quay',     name:'Quay stone',    prio:8.5, soft:.05, gen:'quay', ramp:['#22242a','#36383d','#4a4d52','#606368','#777a7f','#919499'], edge:{ color:'rgba(5,5,8,.65)', w:.1 } },
-  // Steampunk pack
   { key:'brass',    name:'Brass plate',   prio:9.2, soft:.02, gen:'plate', ramp:['#1c1206','#3e2a0e','#6a4a18','#9a7228','#c49a40','#ead07a'], edge:{ color:'rgba(8,5,2,.75)', w:.08 } },
   { key:'ironplate',name:'Riveted iron',  prio:9.15, soft:.02, gen:'plate', ramp:['#0e1013','#22262c','#363c44','#4c535d','#646c77','#848c97'], edge:{ color:'rgba(4,4,6,.75)', w:.08 } },
   { key:'grating',  name:'Iron grating',  prio:9.1, soft:.02, gen:'grate', ramp:['#060708','#1c1e22','#33363c','#4a4e55','#62666e','#80848c'], edge:{ color:'rgba(4,4,6,.75)', w:.08 } },
   { key:'soot',     name:'Sooty cobbles', prio:8.4, soft:.1, gen:'cobble', ramp:['#121110','#1d1b19','#292623','#36322e','#45403a','#55504a'] },
+  { key:'deepwater',name:'Deep water', prio:5.1, soft:1, gen:'water', ramp:['#03101a','#051823','#08202f','#0c2a3c','#11364b','#18445c'] },
 ];
 // panel order and shortcuts (1–9, 0, then Shift+1…)
-const DISPLAY = ['grass','forest','pine','dirt','sand','rock','lrock','snow','water','lava','cobble','flag','wood','tatami','engawa','gravel','moss','wetrock','crystal','cavemud','biomoss','jungle','beach','reef','mangrove','deck','pier','quay','brass','ironplate','grating','soot'].map(k => TERRAINS.findIndex(t => t.key === k));
+const DISPLAY = ['grass','forest','pine','dirt','sand','rock','lrock','snow','water','deepwater','lava','cobble','flag','wood','tatami','engawa','gravel','moss','wetrock','crystal','cavemud','biomoss','jungle','beach','reef','mangrove','deck','pier','quay','brass','ironplate','grating','soot'].map(k => TERRAINS.findIndex(t => t.key === k));
 /* ---------- palette: colour ramps generated from a base colour ---------- */
 function hexToHsl(hex){ let [r, g, b] = hexRgb(hex).map(v => v / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let h = 0, s = 0;
   if (mx !== mn){ const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return [h, s, l]; }
@@ -626,7 +627,7 @@ const SEASON_RAMPS = {
   autumn: { moss: ['#2a2e14','#3d431b','#525a22','#68702c','#7d8638','#949c48'], grass: ['#38371a','#524d24','#6b6330','#847a3c','#9c904d','#b3a662'], forest: ['#2a120a','#4a2210','#7a3814','#a8541c','#c97a28','#e0a03c'], dirt: ['#33241a','#483323','#5d432f','#72543b','#876748','#9d7c5a'] },
   winter: { moss: ['#5d6e66','#7a8a83','#98a7a1','#b6c3bf','#d0dad8','#e9eff0'], grass: ['#8a9aab','#a5b5c4','#bdcad6','#d1dce5','#e3eaf1','#f3f7fa'], forest: ['#2a2622','#3d3833','#554d45','#6e655c','#8c857c','#b3ada6'],
             pine: ['#0d1c16','#1a2f25','#2e4a3a','#7d968b','#c3d3cc','#f0f5f3'], dirt: ['#4a4541','#5f5954','#77706a','#908982','#aba59e','#c8c3bd'],
-            water: ['#4f7286','#668b9e','#7fa4b6','#9bbecc','#bad5e0','#d8eaf0'], sand: ['#9a8e74','#b3a78c','#c9bea4','#d9d0ba','#e6dfce','#f2eee4'] },
+            deepwater: ['#1c3646','#24434f','#2f5262','#3d6476','#4f788a','#668e9f'], water: ['#4f7286','#668b9e','#7fa4b6','#9bbecc','#bad5e0','#d8eaf0'], sand: ['#9a8e74','#b3a78c','#c9bea4','#d9d0ba','#e6dfce','#f2eee4'] },
 };
 for (const s of Object.values(SEASON_RAMPS)) for (const k in s) s[k] = { ramp: s[k], rgb: s[k].map(hexRgb) };
 function seasonal(T){ if (T.custom || SEASON === 'summer') return T; const o = SEASON_RAMPS[SEASON][T.key]; if (!o) return T;
@@ -680,12 +681,70 @@ const WALLMATS = {
   hull:  { key: 'wood', ramp: ['#120b06','#1e130a','#2c1c0f','#3b2615','#4c321c','#5e3f24'] },
   brasswall:{ key: 'plate', ramp: ['#1c1206','#3e2a0e','#6a4a18','#9a7228','#c49a40','#ead07a'] },
   ironwall: { key: 'plate', ramp: ['#0e1013','#22262c','#363c44','#4c535d','#646c77','#848c97'] },
+  rampart:{ key: 'flag', ramp: ['#3a3731','#4d4943','#625d55','#78726a','#8f887e','#a79f94'] },
   bamboo:{ key: 'wood', ramp: ['#3a3a14','#55541c','#706c26','#8a8432','#a59c42','#bdb258'] },
 };
 Object.values(WALLMATS).forEach(w => w.rgb = w.ramp.map(hexRgb));
 function getWallTex(mat, P, seed){ const key = 'w:' + mat + ':' + P + ':' + seed; let c = texCache.get(key); if (!c){ c = genTex(WALLMATS[mat], P, seed, 200 + Object.keys(WALLMATS).indexOf(mat)); texCache.set(key, c); } return c; }
 const DOOR_CUT = { door: 1, double: 1, portcullis: 1, opening: 1, shoji: 1 };
 
+/* ---------- wall chains: connected segments become polylines (natural caves and fortress wall-walks) ---------- */
+function wallChains(ws){
+  const K = (x, y) => Math.round(x * 100) + ',' + Math.round(y * 100), adj = new Map();
+  ws.forEach((w, i) => { for (const k of [K(w.x1, w.y1), K(w.x2, w.y2)]){ if (!adj.has(k)) adj.set(k, []); adj.get(k).push(i); } });
+  const used = new Uint8Array(ws.length), out = [];
+  const next = (pt) => { for (const j of adj.get(K(pt[0], pt[1])) || []) if (!used[j]){ used[j] = 1; const w = ws[j]; return K(w.x1, w.y1) === K(pt[0], pt[1]) ? [w.x2, w.y2] : [w.x1, w.y1]; } return null; };
+  for (let i = 0; i < ws.length; i++){ if (used[i]) continue; used[i] = 1; const w = ws[i], pts = [[w.x1, w.y1], [w.x2, w.y2]];
+    for (let p; (p = next(pts[pts.length - 1]));) pts.push(p);
+    for (let p; (p = next(pts[0]));) pts.unshift(p);
+    const closed = pts.length > 3 && K(...pts[0]) === K(...pts[pts.length - 1]); if (closed) pts.pop();
+    out.push({ pts, closed }); }
+  return out; }
+function roundCorners(pts, closed, rc){ // replace each corner with a short curve
+  const n = pts.length, out = []; if (n < 3) return pts.slice();
+  for (let i = 0; i < n; i++){ const p = pts[i];
+    if (!closed && (i === 0 || i === n - 1)){ out.push(p); continue; }
+    const a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n], la = Math.hypot(p[0] - a[0], p[1] - a[1]), lb = Math.hypot(b[0] - p[0], b[1] - p[1]);
+    const ra = Math.min(rc, la / 2), rb = Math.min(rc, lb / 2), s = [p[0] + (a[0] - p[0]) * ra / la, p[1] + (a[1] - p[1]) * ra / la], e = [p[0] + (b[0] - p[0]) * rb / lb, p[1] + (b[1] - p[1]) * rb / lb];
+    for (let k = 0; k <= 4; k++){ const t = k / 4, u = 1 - t; out.push([u * u * s[0] + 2 * u * t * p[0] + t * t * e[0], u * u * s[1] + 2 * u * t * p[1] + t * t * e[1]]); } }
+  return out; }
+function resample(pts, closed, step){ const out = [], P2 = closed ? [...pts, pts[0]] : pts;
+  for (let i = 0; i < P2.length - 1; i++){ const a = P2[i], b = P2[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / step));
+    for (let k = 0; k < n; k++) out.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]); }
+  if (!closed) out.push(P2[P2.length - 1]); return out; }
+function cavePaths(ctx, ws, P, seed){ // rounded corners, then a big irregular wobble, drawn twice so the thickness varies
+  for (const ch of wallChains(ws)){ const base = resample(roundCorners(ch.pts, ch.closed, .7), ch.closed, .15), n = base.length;
+    let along = 0; const tot = base.reduce((s, p, i) => i ? s + Math.hypot(p[0] - base[i - 1][0], p[1] - base[i - 1][1]) : 0, 0);
+    for (const [so, side] of [[0, 0], [57, .12], [113, -.1]]){ along = 0;
+      for (let i = 0; i < n; i++){ const p = base[i], a = base[Math.max(0, i - 1)], b = base[Math.min(n - 1, i + 1)], a2 = ch.closed ? base[(i - 1 + n) % n] : a, b2 = ch.closed ? base[(i + 1) % n] : b;
+        if (i) along += Math.hypot(p[0] - base[i - 1][0], p[1] - base[i - 1][1]);
+        const dx = b2[0] - a2[0], dy = b2[1] - a2[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
+        const taper = ch.closed ? 1 : clamp(Math.min(along, tot - along) / .6, 0, 1);
+        const d = ((vnoise(p[0] * 1.2 + 11 + so, p[1] * 1.2 + 7, 1 << 20, seed) - .5) * .6 + (vnoise(p[0] * 3.4 + 3 + so, p[1] * 3.4 + 5, 1 << 20, seed + 1) - .5) * .25 + side) * taper;
+        const x = (p[0] + nx * d) * P, y = (p[1] + ny * d) * P; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      if (ch.closed) ctx.closePath(); } } }
+function offsetPoly(pts, closed, d){ const n = pts.length, out = [];
+  for (let i = 0; i < n; i++){ const nrm = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [-dy / l, dx / l]; };
+    const hasA = closed || i > 0, hasB = closed || i < n - 1, n1 = hasA ? nrm(pts[(i - 1 + n) % n], pts[i]) : null, n2 = hasB ? nrm(pts[i], pts[(i + 1) % n]) : null;
+    if (n1 && n2){ const k = 1 + n1[0] * n2[0] + n1[1] * n2[1]; out.push([pts[i][0] + d * (n1[0] + n2[0]) / Math.max(.2, k), pts[i][1] + d * (n1[1] + n2[1]) / Math.max(.2, k)]); }
+    else { const q = n1 || n2; out.push([pts[i][0] + d * q[0], pts[i][1] + d * q[1]]); } }
+  return out; }
+function chainPath(ctx, pts, closed, P){ pts.forEach((p, i) => i ? ctx.lineTo(p[0] * P, p[1] * P) : ctx.moveTo(p[0] * P, p[1] * P)); if (closed) ctx.closePath(); }
+function inPoly(x, y, pts){ let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++){ const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
+function drawRampartTop(ctx, g, P, seed){ // parapets on both edges of the wall-walk; battlements on the outer one
+  const th = g.th, p = Math.min(.24, th * .22);
+  for (const ch of wallChains(g.ws)){ const pts = ch.pts;
+    let outer = 1; if (ch.closed){ const a = pts[0], b = pts[1], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; if (!inPoly((a[0] + b[0]) / 2 - dy / l * .05, (a[1] + b[1]) / 2 + dx / l * .05, pts)) outer = 1; else outer = -1; }
+    const stone = ctx.createPattern(getWallTex('stone', P, seed), 'repeat');
+    for (const sg of [outer, -outer]){ const line = offsetPoly(pts, ch.closed, sg * (th / 2 - p / 2)), isOuter = sg === outer;
+      ctx.lineJoin = 'miter'; ctx.lineCap = ch.closed ? 'butt' : 'square';
+      ctx.beginPath(); chainPath(ctx, line, ch.closed, P); ctx.strokeStyle = '#0b0a09'; ctx.lineWidth = p * P + Math.max(2, P * .05); ctx.stroke(); ctx.strokeStyle = stone; ctx.lineWidth = p * P; ctx.stroke();
+      if (isOuter){ ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = p * P; ctx.stroke();   // crenels sit lower and darker
+        ctx.setLineDash([P * .3, P * .2]); ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = p * P * 1.35 + 2; ctx.stroke(); ctx.strokeStyle = stone; ctx.lineWidth = p * P * 1.35; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,244,226,.3)'; ctx.lineWidth = p * P * .5; ctx.stroke(); ctx.setLineDash([]); }
+      else { ctx.strokeStyle = 'rgba(255,240,220,.12)'; ctx.lineWidth = p * P * .35; ctx.stroke(); } }
+    // walkway shading: a soft gutter along each parapet's foot
+    for (const sg of [1, -1]){ ctx.beginPath(); chainPath(ctx, offsetPoly(pts, ch.closed, sg * (th / 2 - p - .04)), ch.closed, P); ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = P * .08; ctx.stroke(); } } }
 function wallPath(ctx, w, P, seed){
   if (w.mat !== 'cave'){ ctx.moveTo(w.x1 * P, w.y1 * P); ctx.lineTo(w.x2 * P, w.y2 * P); return; }
   const dx = w.x2 - w.x1, dy = w.y2 - w.y1, len = Math.hypot(dx, dy) || 1, n = Math.max(2, Math.ceil(len * 5)), nx = -dy / len, ny = dx / len;
@@ -775,17 +834,22 @@ function drawStructure(m, ctx, P, opt){
   if (st.walls.length){
     const groups = {}; for (const w of st.walls) (groups[w.mat + '|' + w.th] ||= { mat: w.mat, th: w.th, ws: [] }).ws.push(w);
     const G = Object.values(groups);
-    const pass = (fn) => { for (const g of G){ ctx.lineCap = g.mat === 'cave' ? 'round' : 'square'; ctx.beginPath(); for (const w of g.ws) wallPath(ctx, w, P, m.seed); fn(g); ctx.stroke(); } };
-    ctx.filter = `blur(${(P * .32).toFixed(1)}px)`; ctx.strokeStyle = 'rgba(0,0,0,.62)'; pass(g => ctx.lineWidth = g.th * P + P * .7);
-    ctx.save(); ctx.translate(P * SUN.dx * 1.2, P * SUN.dy * 1.2); ctx.filter = `blur(${(P * .06).toFixed(1)}px)`; ctx.strokeStyle = `rgba(0,0,0,${SUN.a})`; pass(g => ctx.lineWidth = g.th * P + P * .03); ctx.restore();
+    for (const g of G) if (g.mat === 'cave') g.wth = Math.max(.3, g.th * 1.5);   // natural cave walls are a band of rock
+    const W_ = g => (g.wth || g.th);
+    const pass = (fn, only) => { for (const g of G){ if (only && !only(g)) continue; ctx.lineCap = g.mat === 'cave' ? 'round' : g.mat === 'rampart' ? 'square' : 'square'; ctx.lineJoin = g.mat === 'rampart' ? 'miter' : 'round'; ctx.beginPath();
+      if (g.mat === 'cave') cavePaths(ctx, g.ws, P, m.seed); else if (g.mat === 'rampart') for (const ch of wallChains(g.ws)) chainPath(ctx, ch.pts, ch.closed, P); else for (const w of g.ws) wallPath(ctx, w, P, m.seed);
+      fn(g); ctx.stroke(); } };
+    ctx.filter = `blur(${(P * .32).toFixed(1)}px)`; ctx.strokeStyle = 'rgba(0,0,0,.62)'; pass(g => ctx.lineWidth = W_(g) * P + P * .7);
+    for (const g of G){ const k = g.mat === 'rampart' ? 3.5 : 1.2; ctx.save(); ctx.translate(P * SUN.dx * k, P * SUN.dy * k); ctx.filter = `blur(${(P * .06).toFixed(1)}px)`; ctx.strokeStyle = `rgba(0,0,0,${SUN.a})`; pass(h => ctx.lineWidth = W_(h) * P + P * .03, h => h === g); ctx.restore(); }
     ctx.filter = 'none';
-    ctx.strokeStyle = '#0b0a09'; pass(g => ctx.lineWidth = g.th * P + Math.max(2, P * .055));
-    pass(g => { const pat = ctx.createPattern(getWallTex(g.mat, P, m.seed), 'repeat'); ctx.strokeStyle = pat; ctx.lineWidth = g.th * P; });
-    ctx.save(); ctx.translate(-P * .015, -P * .02); ctx.strokeStyle = 'rgba(255,240,220,.1)'; pass(g => ctx.lineWidth = Math.max(1, g.th * P * .35)); ctx.restore();
+    ctx.strokeStyle = '#0b0a09'; pass(g => ctx.lineWidth = W_(g) * P + Math.max(2, P * .055));
+    pass(g => { const pat = ctx.createPattern(getWallTex(g.mat, P, m.seed), 'repeat'); ctx.strokeStyle = pat; ctx.lineWidth = W_(g) * P; });
+    ctx.save(); ctx.translate(-P * .015, -P * .02); ctx.strokeStyle = 'rgba(255,240,220,.1)'; pass(g => ctx.lineWidth = Math.max(1, W_(g) * P * .35), g => g.mat !== 'rampart'); ctx.restore();
+    for (const g of G) if (g.mat === 'rampart') drawRampartTop(ctx, g, P, m.seed);
   }
   ctx.save(); ctx.globalCompositeOperation = 'destination-out';
   for (const d of st.doors) if (DOOR_CUT[d.type]){ const [cx, cy, a] = doorCenter(d);
-    let th = 0; for (const w of st.walls) if (segDist(cx, cy, w.x1, w.y1, w.x2, w.y2) < .2) th = Math.max(th, w.th); th = th || .25;
+    let th = 0; for (const w of st.walls) if (segDist(cx, cy, w.x1, w.y1, w.x2, w.y2) < .2) th = Math.max(th, w.mat === 'cave' ? Math.max(.3, w.th * 1.5) + .5 : w.th); th = th || .25;
     const h = th * P + Math.max(2, P * .055) + 2;
     ctx.save(); ctx.translate(cx * P, cy * P); ctx.rotate(a); ctx.fillRect(-P * .45, -h / 2, P * .9, h); ctx.restore(); }
   ctx.restore();
@@ -2053,34 +2117,64 @@ const nightCanvas = $('nightCanvas'), glowCanvas = $('glowCanvas'), labelCanvas 
 /* ---------- ground height: one level per square, 5 ft a step (−3 … +6) ---------- */
 const H_MIN = -3, H_MAX = 6;
 const hasHeights = m => !!(m.hgt && m.hgt.some(v => v));
-function drawRelief(ctx, m, P){
+/* ---------- relief, smooth variants: 'soft' hills · 'cliffs' natural cliffs · 'contour' map contours ---------- */
+const RELIEF_STYLES = { cliffs: { sig: .4, disp: .3 }, contour: { sig: .5, disp: .22 } };
+function rvnoise(x, y){ const h = (i, j) => { const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return s - Math.floor(s); };
+  const xi = Math.floor(x), yi = Math.floor(y), tx = x - xi, ty = y - yi, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+  return (h(xi, yi) * (1 - sx) + h(xi + 1, yi) * sx) * (1 - sy) + (h(xi, yi + 1) * (1 - sx) + h(xi + 1, yi + 1) * sx) * sy; }
+const fbm2 = (x, y) => rvnoise(x, y) * .55 + rvnoise(x * 2.1 + 5.3, y * 2.1 + 1.7) * .3 + rvnoise(x * 4.3 + 9.1, y * 4.3 + 3.3) * .15;
+function boxBlur(F, W, H, r){ if (r < 1) return F; const T = new Float32Array(F.length), n = 2 * r + 1;
+  for (let pass = 0; pass < 3; pass++){
+    for (let j = 0; j < H; j++){ let acc = 0; for (let k = -r; k <= r; k++) acc += F[j * W + clamp(k, 0, W - 1)];
+      for (let i = 0; i < W; i++){ T[j * W + i] = acc / n; acc += F[j * W + Math.min(W - 1, i + r + 1)] - F[j * W + Math.max(0, i - r)]; } }
+    for (let i = 0; i < W; i++){ let acc = 0; for (let k = -r; k <= r; k++) acc += T[clamp(k, 0, H - 1) * W + i];
+      for (let j = 0; j < H; j++){ F[j * W + i] = acc / n; acc += T[Math.min(H - 1, j + r + 1) * W + i] - T[Math.max(0, j - r) * W + i]; } } }
+  return F; }
+function reliefField(m, SS, sig, disp){ // smooth, slightly irregular height field in levels, SS samples per square
+  const C = m.cols, Rw = m.rows, W = C * SS, Hh = Rw * SS, H = m.hgt, F = new Float32Array(W * Hh);
+  for (let j = 0; j < Hh; j++) for (let i = 0; i < W; i++) F[j * W + i] = H[Math.floor(j / SS) * C + Math.floor(i / SS)];
+  boxBlur(F, W, Hh, Math.max(1, Math.round(sig * SS - .5)));
+  const at = (x, y) => { x = clamp(x, 0, W - 1.001); y = clamp(y, 0, Hh - 1.001); const x0 = x | 0, y0 = y | 0, tx = x - x0, ty = y - y0, p = y0 * W + x0;
+    return (F[p] * (1 - tx) + F[p + 1] * tx) * (1 - ty) + (F[p + W] * (1 - tx) + F[p + W + 1] * tx) * ty; };
+  const D = new Float32Array(W * Hh), sd = m.seed % 997;
+  for (let j = 0; j < Hh; j++) for (let i = 0; i < W; i++){ const x = i / SS, y = j / SS;
+    D[j * W + i] = at(i + (fbm2(x * .6 + sd, y * .6) - .5) * 2 * disp * SS, j + (fbm2(x * .6 + 40 + sd, y * .6 + 17) - .5) * 2 * disp * SS); }
+  return { D, W, Hh }; }
+function drawRelief2(ctx, m, P, style){
   const H = m.hgt; if (!H || !hasHeights(m) || H.length !== m.cols * m.rows) return;
-  const C = m.cols, Rw = m.rows, cell = (a, b) => H[clamp(b, 0, Rw - 1) * C + clamp(a, 0, C - 1)], hb = (x, y) => cell(Math.floor(x), Math.floor(y));
-  const e = .17, hs = (x, y) => (hb(x - e, y - e) + hb(x + e, y - e) + hb(x - e, y + e) + hb(x + e, y + e)) / 4;   // steps soften into short banks
+  const st = RELIEF_STYLES[style] || RELIEF_STYLES.cliffs, n = m.cols * m.rows, SS = n > 20000 ? 3 : n > 6000 ? 5 : 8;
+  const { D, W, Hh } = reliefField(m, SS, st.sig, st.disp), img = new ImageData(W, Hh), d = img.data, at = (i, j) => D[clamp(j, 0, Hh - 1) * W + clamp(i, 0, W - 1)];
   let maxH = H_MIN; for (const v of H) if (v > maxH) maxH = v;
-  const SS = C * Rw > 20000 ? 3 : C * Rw > 6000 ? 4 : 6, W = C * SS, Hh = Rw * SS, img = new ImageData(W, Hh), d = img.data;
   const sl = Math.max(.02, Math.hypot(SUN.dx, SUN.dy)), lx = -SUN.dx / sl, ly = -SUN.dy / sl, lz = 1.1, ln = Math.hypot(lx, ly, lz), Lx = lx / ln, Ly = ly / ln, Lz = lz / ln;
-  const kStep = Math.min(1, .18 / sl);
+  const kStep = Math.min(.5, .15 / sl), cliffs = style === 'cliffs', ao = Math.max(1, Math.round(SS * .3));
   for (let j = 0; j < Hh; j++) for (let i = 0; i < W; i++){
-    const x = (i + .5) / SS, y = (j + .5) / SS, g = hb(x, y);
-    const nx = -(hs(x + e, y) - hs(x - e, y)) / (2 * e) * .35, ny = -(hs(x, y + e) - hs(x, y - e)) / (2 * e) * .35, nn = Math.hypot(nx, ny, 1);
+    const g = at(i, j), w2 = Math.max(1, SS >> 2), gx = (at(i + w2, j) - at(i - w2, j)) * SS / (2 * w2), gy = (at(i, j + w2) - at(i, j - w2)) * SS / (2 * w2), s = Math.hypot(gx, gy);
+    const kz = cliffs ? .55 : .45, nx = -gx * kz, ny = -gy * kz, nn = Math.hypot(nx, ny, 1);
     let v = (nx * Lx + ny * Ly + Lz) / nn - Lz + g * .03;
-    for (let k = kStep; k <= maxH - g; k += kStep) if (hb(x - SUN.dx * k, y - SUN.dy * k) - g >= k){ v -= SUN.a * .6; break; }
-    const p = (j * W + i) * 4; if (v < 0){ d[p + 3] = Math.min(.68, -v * 1.15) * 255; } else { d[p] = d[p + 1] = d[p + 2] = 255; d[p + 3] = Math.min(.22, v * .8) * 255; } }
+    const lap = (at(i - ao, j) + at(i + ao, j) + at(i, j - ao) + at(i, j + ao)) / 4 - g; v -= lap * (cliffs ? 2.2 : 1.6);   // hollows darker, crests lighter
+    for (let k = kStep; k <= maxH - g; k += kStep) if (at(i - SUN.dx * k * SS, j - SUN.dy * k * SS) - g >= k){ v -= SUN.a * .55; break; }
+    const fc = cliffs && s > .95 ? clamp((s - .95) / .9, 0, 1) : 0; if (fc) v = v * (1 - fc * .85) - lap * fc * 1.5;
+    let r = 0, gg = 0, b = 0, a = 0; if (v < 0) a = Math.min(.6, -v * 1.1); else { r = gg = b = 255; a = Math.min(.16, v * .6); }
+    if (fc){ // steep ground turns to rock, laid over the terrain's own colour
+      const f = fc, streak = fbm2(i / SS * 9, j / SS * 1.4), south = gy < 0 ? 1 : .5;
+      const band = .5 + .5 * Math.sin(g * 9 + streak * 3), fa = f * (.62 + streak * .25) * south, fr = 150 - streak * 50 - band * 18, fg = 138 - streak * 46 - band * 17, fb = 120 - streak * 40 - band * 15;
+      const oa = fa + a * (1 - fa); if (oa > 0){ r = (fr * fa + r * a * (1 - fa)) / oa; gg = (fg * fa + gg * a * (1 - fa)) / oa; b = (fb * fa + b * a * (1 - fa)) / oa; a = oa; } }
+    const p = (j * W + i) * 4; d[p] = r; d[p + 1] = gg; d[p + 2] = b; d[p + 3] = a * 255; }
   const tc = document.createElement('canvas'); tc.width = W; tc.height = Hh; tc.getContext('2d').putImageData(img, 0, 0);
-  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(tc, 0, 0, C * P, Rw * P);
-  // cliffs: a drop of 10 ft or more. The south-facing face shows (oblique view); other edges get a hard rim.
-  for (let r = 0; r < Rw; r++) for (let c = 0; c < C; c++){ const h = H[r * C + c], rnd = mulberry(r * 7919 + c * 131 + 17);
-    if (r + 1 < Rw){ const drop = h - H[(r + 1) * C + c]; if (drop >= 2){ const x = c * P, y = (r + 1) * P, fh = Math.min(.9, drop * .16) * P;
-      const g = ctx.createLinearGradient(0, y, 0, y + fh); g.addColorStop(0, 'rgba(128,118,104,.96)'); g.addColorStop(.35, 'rgba(92,84,74,.96)'); g.addColorStop(1, 'rgba(34,30,27,.96)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + P, y); const n = 4; for (let q = n; q >= 0; q--) ctx.lineTo(x + P * q / n, y + fh * (.86 + rnd() * .2)); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(20,16,12,.35)'; ctx.lineWidth = Math.max(.7, P / 60); ctx.beginPath(); for (let q = 0; q < 4; q++){ const sx = x + P * (.1 + rnd() * .8); ctx.moveTo(sx, y + fh * .1); ctx.lineTo(sx + (rnd() - .5) * P * .06, y + fh * (.6 + rnd() * .3)); } ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,248,228,.45)'; ctx.lineWidth = Math.max(1, P / 32); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + P, y); ctx.stroke(); } }
-    const rim = (x0, y0, x1, y1) => { ctx.strokeStyle = 'rgba(10,8,6,.55)'; ctx.lineWidth = Math.max(1, P / 14); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
-    if (c + 1 < C && Math.abs(h - H[r * C + c + 1]) >= 2) rim((c + 1) * P, r * P, (c + 1) * P, (r + 1) * P);
-    if (r + 1 < Rw && H[(r + 1) * C + c] - h >= 2) rim(c * P, (r + 1) * P, (c + 1) * P, (r + 1) * P); }
-  ctx.restore();
-}
+  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(tc, 0, 0, m.cols * P, m.rows * P);
+  if (style === 'contour' || cliffs){ // marching squares: a line every 5 ft (contour style) or a crisp lip on cliff tops
+    const k = P / SS, lines = {};
+    for (let j = 0; j < Hh - 1; j++) for (let i = 0; i < W - 1; i++){ const c0 = at(i, j), c1 = at(i + 1, j), c2 = at(i + 1, j + 1), c3 = at(i, j + 1);
+      const lo = Math.min(c0, c1, c2, c3), hi = Math.max(c0, c1, c2, c3); if (hi - lo < .01) continue;
+      for (let t = Math.ceil(lo - .5) + .5; t < hi; t++){ const pts = [], e = (a, b, x0, y0, x1, y1) => { if ((a - t) * (b - t) < 0){ const u = (t - a) / (b - a); pts.push([(x0 + (x1 - x0) * u) * k, (y0 + (y1 - y0) * u) * k]); } };
+        e(c0, c1, i, j, i + 1, j); e(c1, c2, i + 1, j, i + 1, j + 1); e(c3, c2, i, j + 1, i + 1, j + 1); e(c0, c3, i, j, i, j + 1);
+        if (pts.length >= 2){ (lines[t] = lines[t] || []).push(pts[0], pts[1]); if (pts.length === 4) lines[t].push(pts[2], pts[3]); } } }
+    for (const t in lines){ const L = lines[t], lev = +t + .5;
+      if (cliffs){ ctx.strokeStyle = 'rgba(40,32,24,.18)'; ctx.lineWidth = Math.max(.8, P / 48); }
+      else { ctx.strokeStyle = lev % 2 === 0 ? 'rgba(52,36,20,.55)' : 'rgba(52,36,20,.3)'; ctx.lineWidth = Math.max(.8, P / (lev % 2 === 0 ? 28 : 45)); }
+      ctx.beginPath(); for (let q = 0; q < L.length; q += 2){ ctx.moveTo(L[q][0], L[q][1]); ctx.lineTo(L[q + 1][0], L[q + 1][1]); } ctx.stroke(); } }
+  ctx.restore(); }
+function drawRelief(ctx, m, P){ drawRelief2(ctx, m, P, m.relief === 'contour' ? 'contour' : 'cliffs'); }
 const reliefCanvas = $('reliefCanvas');
 let reliefRaf = false;
 function drawReliefView(){ const x = reliefCanvas.getContext('2d'); x.clearRect(0, 0, reliefCanvas.width, reliefCanvas.height); if (map.layers[0].visible) drawRelief(x, map, viewP); }
@@ -2090,6 +2184,7 @@ function paintHeight(cx, cy, rad, lv){ const H = ensureHgt(); let ch = false; co
   for (let r = Math.max(0, Math.floor(cy - r2)); r < Math.min(map.rows, Math.ceil(cy + r2)); r++) for (let c = Math.max(0, Math.floor(cx - r2)); c < Math.min(map.cols, Math.ceil(cx + r2)); c++){
     const inside = Math.hypot(c + .5 - cx, r + .5 - cy) <= r2 || (c === Math.floor(cx) && r === Math.floor(cy)); if (inside && H[r * map.cols + c] !== lv){ H[r * map.cols + c] = lv; ch = true; } }
   if (ch) reliefChanged(); }
+$('reliefSel').onchange = () => { map.relief = $('reliefSel').value; drawReliefView(); touchSave(); };
 $('hLevel').oninput = () => { $('hOut').textContent = heightLabel(+$('hLevel').value); };
 function heightLabel(v){ return v === 0 ? 'Ground level' : (v > 0 ? '+' : '−') + Math.abs(v) * 5 + ' ft' + (v > 0 ? ' (raised)' : ' (sunken)'); }
 
@@ -2270,6 +2365,7 @@ function scatterAt(cx, cy){
 }
 const avgArea = keys => keys.reduce((a, k) => a + STAMPS[k].w * STAMPS[k].h * objSize() * objSize() * .6, 0) / keys.length;
 const wallMat = () => $('wallMat').value, wallTh = () => +$('wallTh').value;
+$('wallMat').addEventListener('change', () => { const r = $('wallMat').value === 'rampart', t = +$('wallTh').value; if (r && t < .9) $('wallTh').value = '1'; if (!r && t >= .9) $('wallTh').value = '0.25'; });
 function snapPt(cx, cy, md, from){
   const q = md.alt ? 4 : 1; let x = Math.round(cx * q) / q, y = Math.round(cy * q) / q;
   if (md.shift && from){ let dx = x - from[0], dy = y - from[1];
@@ -2779,7 +2875,7 @@ function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return nu
 function thumbnail(){ const w = 220, h = Math.max(1, Math.round(w * map.rows / map.cols)); const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
   for (const l of map.layers) if (l.visible){ const lc = layerCanvases(l); x.globalAlpha = l.opacity; x.drawImage(lc.t, 0, 0, w, h); if (l === map.layers[0]) x.drawImage(reliefCanvas, 0, 0, w, h); x.drawImage(lc.s, 0, 0, w, h); } x.globalAlpha = 1; return c.toDataURL('image/jpeg', .75); }
 const extraLayers = m => (m.layers || []).slice(1).map(l => ({ id: l.id, name: l.name, visible: l.visible, opacity: l.opacity, dm: l.dm, labels: l.labels, struct: l.struct }));
-function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', hgt: hasHeights(m) ? m.hgt.slice() : null, created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
+function toRecord(m, withThumb){ return { id: m.id, name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: m.base, R, cb: CUSTOM_BASE, labels: m.layers ? m.layers[0].labels : m.labels, struct: m.layers ? m.layers[0].struct : m.struct, layers: extraLayers(m), activeLayer: m.activeLayer, custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', hgt: hasHeights(m) ? m.hgt.slice() : null, relief: m.relief === 'contour' ? 'contour' : 'cliffs', created: m.created || Date.now(), updated: Date.now(), thumb: withThumb ? thumbnail() : m.thumb }; }
 let saveTimer = 0;
 function touchSave(){ dirtySave = true; $('stSave').textContent = 'Unsaved changes…'; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1500); }
 async function saveNow(){
@@ -2795,11 +2891,11 @@ function migrateCustom(m, oldBase){
   if (m.base >= oldBase && m.base < oldBase + n) m.base = CUSTOM_BASE + m.base - oldBase;
   return m;
 }
-function fromRecord0(r){ return gridInit({ rules: r.rules === '5e' ? '5e' : '35', showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), hgt: r.hgt && r.hgt.length === r.cols * r.rows ? new Int8Array(r.hgt) : null, created: r.created, thumb: r.thumb }); }
+function fromRecord0(r){ return gridInit({ rules: r.rules === '5e' ? '5e' : '35', showTop: r.showTop !== false, season: r.season, occlude: r.occlude !== false, tod: TOD[r.tod] ? r.tod : (r.night ? 'night' : 'day'), nightStr: r.nightStr, lightRad: r.lightRad, grid: r.grid, px: r.px, unit: r.unit, hcols: r.hcols | 0, hrows: r.hrows | 0, id: r.id, name: r.name, cols: r.cols, rows: r.rows, ft: r.ft, seed: r.seed, soft: r.soft ?? .6, base: r.base, labels: new Uint8Array(r.labels), struct: cleanStruct(r.struct), custom: cleanCustom(r.custom), hgt: r.hgt && r.hgt.length === r.cols * r.rows ? new Int8Array(r.hgt) : null, relief: r.relief === 'contour' ? 'contour' : 'cliffs', created: r.created, thumb: r.thumb }); }
 
 function openMap(m){
   map = gridInit(m); if (!map.layers) ensureLayers(map); map.custom = map.custom || []; LV.forEach(c => { c.t.remove(); c.s.remove(); }); LV.clear();
-  { const al = map.layers.find(l => l.id === map.activeLayer) || map.layers[0]; map.labels = al.labels; map.struct = al.struct; } $('nightStr').value = map.nightStr ?? .7; $('lightRad').value = map.lightRad ?? 1; $('occlude').checked = map.occlude !== false; $('lightRules').value = map.rules === '5e' ? '5e' : '35'; applyCustoms(); buildCustomPanel(); undoStack = []; redoStack = []; updUndo(); texCache.clear();
+  { const al = map.layers.find(l => l.id === map.activeLayer) || map.layers[0]; map.labels = al.labels; map.struct = al.struct; } $('nightStr').value = map.nightStr ?? .7; $('lightRad').value = map.lightRad ?? 1; $('occlude').checked = map.occlude !== false; $('lightRules').value = map.rules === '5e' ? '5e' : '35'; $('reliefSel').value = map.relief === 'contour' ? 'contour' : 'cliffs'; applyCustoms(); buildCustomPanel(); undoStack = []; redoStack = []; updUndo(); texCache.clear();
   if (curTerrain >= TERRAINS.length || TERRAINS[curTerrain].hole) selectTerrain(DISPLAY[0]); else selectTerrain(curTerrain);
   $('mapName').value = map.name; $('soft').value = map.soft; syncOutputs(); updateInfo();
   applyTop(); SEASON = map.season || 'summer'; $('seasonSel').value = SEASON; buildStampPanel(); map.tod = map.tod || (map.night ? 'night' : 'day'); setSun(map.tod);
@@ -2874,7 +2970,7 @@ function cleanStruct(o){ const s = emptyStruct(); if (!o) return s; const num = 
   for (const r of o.roofs || []) s.roofs.push({ x0: num(r.x0), y0: num(r.y0), x1: num(r.x1), y1: num(r.y1), mat: ROOFMATS[r.mat] ? r.mat : 'tiles', ...(/^#[0-9a-f]{6}$/i.test(r.c || '') ? { c: r.c } : {}) });
   for (const t of o.stairs || []) s.stairs.push({ x0: num(t.x0), y0: num(t.y0), x1: num(t.x1), y1: num(t.y1), dir: 'nsew'.includes(t.dir) && t.dir ? t.dir : 's' });
   return s; }
-function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)), hgt: hasHeights(m) ? u8ToB64(new Uint8Array(m.hgt.buffer.slice(0))) : undefined,
+function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)), hgt: hasHeights(m) ? u8ToB64(new Uint8Array(m.hgt.buffer.slice(0))) : undefined, relief: m.relief === 'contour' ? 'contour' : 'cliffs',
   layers: extraLayers(m).map(l => ({ ...l, labels: u8ToB64(new Uint8Array(l.labels)) })) }; }
 function parseProject(o){
   if (!o || o.format !== 'map-drawing/1') throw new Error('Not a Map Drawing project file');
@@ -2890,7 +2986,7 @@ function parseProject(o){
   const base = Math.max(0, TERRAINS.findIndex((t, i) => i < BUILTIN && t.key === o.base));
   const grid = ['square', 'hexflat', 'hexpointy'].includes(o.grid) ? o.grid : 'square';
   if (grid !== 'square'){ const e = hexExtent(grid, o.hcols | 0, o.hrows | 0); if (!(o.hcols > 0 && o.hrows > 0) || Math.ceil(e.w - 1e-6) !== cols || Math.ceil(e.h - 1e-6) !== rows) throw new Error('Hex grid size does not match the map'); }
-  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, rules: o.rules === '5e' ? '5e' : '35', hgt: (() => { try { const b = o.hgt && b64ToU8(o.hgt); return b && b.length === cols * rows ? new Int8Array(b.buffer.slice(0)).map(v => clamp(v, H_MIN, H_MAX)) : null; } catch (e) { return null; } })(), _extras: extras });
+  return gridInit({ id: uid(), name: String(o.name || 'Imported map'), cols, rows, ft: +o.ft || 5, seed: o.seed | 0, soft: +o.soft || .6, base, labels, struct: cleanStruct(o.struct), custom, created: Date.now(), grid, px: o.px, unit: typeof o.unit === 'string' ? o.unit.slice(0, 12) : 'ft', hcols: o.hcols | 0, hrows: o.hrows | 0, tod: TOD[o.tod] ? o.tod : (o.night ? 'night' : 'day'), nightStr: clamp(+o.nightStr || .7, .3, .95), lightRad: clamp(+o.lightRad || 1, .5, 2.5), occlude: o.occlude !== false, season: ['spring', 'summer', 'autumn', 'winter'].includes(o.season) ? o.season : 'summer', showTop: o.showTop !== false, rules: o.rules === '5e' ? '5e' : '35', relief: o.relief === 'contour' ? 'contour' : 'cliffs', hgt: (() => { try { const b = o.hgt && b64ToU8(o.hgt); return b && b.length === cols * rows ? new Int8Array(b.buffer.slice(0)).map(v => clamp(v, H_MIN, H_MAX)) : null; } catch (e) { return null; } })(), _extras: extras });
 }
 $('bImport').onclick = () => $('fileIn').click();
 $('fileIn').onchange = async () => {
