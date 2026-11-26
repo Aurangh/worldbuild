@@ -756,7 +756,25 @@ function wallPath(ctx, w, P, seed){
 }
 const doorCenter = d => d.o === 'h' ? [d.x + .5, d.y, 0] : [d.x, d.y + .5, Math.PI / 2];
 
+function drawArcStairs(ctx, s, P){ // curved / spiral stair: steps along an arc, rising from h0 to h1 (in 5 ft steps)
+  const A = s.arc, cx = A.cx * P, cy = A.cy * P, r0 = A.r0 * P, r1 = A.r1 * P, da = A.a1 - A.a0, rm = (A.r0 + A.r1) / 2;
+  const n = Math.max(4, Math.round(Math.abs(da) * rm * 3)), h0 = +s.h0 || 0, h1 = s.h1 == null ? 2 : +s.h1, rnd = mulberry(((A.cx * 97 + A.cy * 13) | 0) + 5);
+  const sect = (c, a, b, ox = 0, oy = 0) => { c.beginPath(); c.arc(cx + ox, cy + oy, r1, a, b, b < a); c.arc(cx + ox, cy + oy, r0, b, a, b >= a); c.closePath(); };
+  const sc = document.createElement('canvas'); sc.width = ctx.canvas.width; sc.height = ctx.canvas.height; const sx = sc.getContext('2d'); sx.setTransform(ctx.getTransform()); sx.fillStyle = '#000';
+  for (let i = 0; i < n; i++){ const h = Math.max(.25, h0 + (h1 - h0) * (i + .5) / n), a = A.a0 + da * i / n, b = A.a0 + da * (i + 1) / n;   // each step throws a shadow as long as its height
+    for (const f of [.25, .5, .75, 1]){ sect(sx, a, b, SUN.dx * h * P * f, SUN.dy * h * P * f); sx.fill(); } }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = SUN.a * .85; ctx.filter = `blur(${(P * .1).toFixed(1)}px)`; ctx.drawImage(sc, 0, 0); ctx.restore();
+  const top = [176, 168, 154], bot = [48, 45, 40], lw = Math.max(1, P / 32);
+  for (let i = 0; i < n; i++){ const t = n > 1 ? i / (n - 1) : 1, j = (rnd() - .5) * 14, c = bot.map((v, q) => Math.round(v + (top[q] - v) * t + j)), a = A.a0 + da * i / n, b = A.a0 + da * (i + 1) / n;
+    ctx.fillStyle = `rgb(${c})`; sect(ctx, a, b - Math.sign(da) * .002); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,245,230,.2)'; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(cx + Math.cos(b) * r0, cy + Math.sin(b) * r0); ctx.lineTo(cx + Math.cos(b) * r1, cy + Math.sin(b) * r1); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(10,8,6,.85)'; ctx.lineWidth = Math.max(1.5, P / 18);
+  ctx.beginPath(); ctx.arc(cx, cy, r0, A.a0, A.a1, da < 0); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r1, A.a0, A.a1, da < 0); ctx.stroke();
+  for (const a of [A.a0, A.a1]){ ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.stroke(); }
+}
 function drawStairs(ctx, s, P){
+  if (s.arc) return drawArcStairs(ctx, s, P);
   const x = s.x0 * P, y = s.y0 * P, w = (s.x1 - s.x0) * P, h = (s.y1 - s.y0) * P, vert = s.dir === 'n' || s.dir === 's';
   const len = vert ? s.y1 - s.y0 : s.x1 - s.x0, n = Math.max(2, Math.round(len * 3)), lw = Math.max(1, P / 32);
   const top = [168, 160, 148], bot = [44, 41, 37];
@@ -2550,7 +2568,7 @@ view.addEventListener('pointerdown', e => {
     case 'select': { const h = hitMovable(cx, cy); selObj = null;
       if (h && h.kind === 'objects'){ selObj = h.i; const o = map.struct.objects[selObj]; drag = { mode: 'move', ox: cx - o.x, oy: cy - o.y, pushed: false }; showSel(); }
       else if (h && h.kind === 'labels'){ const l = map.struct.labels[h.i]; drag = { mode: 'label', i: h.i, ox: cx - l.x, oy: cy - l.y, moved: false, noEdit: true }; }
-      else if (h){ drag = { mode: 'moveRect', kind: h.kind, i: h.i, sx: cx, sy: cy, r0: { ...map.struct[h.kind][h.i] }, pushed: false }; $('stTool').textContent = 'Moving ' + (h.kind === 'roofs' ? 'roof' : 'stairs'); }
+      else if (h){ drag = { mode: 'moveRect', kind: h.kind, i: h.i, sx: cx, sy: cy, r0: JSON.parse(JSON.stringify(map.struct[h.kind][h.i])), pushed: false }; $('stTool').textContent = 'Moving ' + (h.kind === 'roofs' ? 'roof' : 'stairs'); }
       else $('stTool').textContent = TOOL_NAMES.select; drawOverlay(); break; }
   }
   if (e.pointerType === 'touch'){ if (drag) Object.assign(drag, { touch: true, t0: performance.now(), u0 }); else drag = { mode: 'tap', touch: true, t0: performance.now(), u0 }; }
@@ -2586,7 +2604,8 @@ view.addEventListener('pointermove', e => {
     if (drag.mode === 'stampHold' && Math.hypot(cx - drag.sx, cy - drag.sy) > .2){ selObj = drag.i; Object.assign(drag, { mode: 'move', pushed: false, fromStamp: true }); $('stTool').textContent = 'Moving ' + STAMPS[map.struct.objects[selObj].t].name; }
     if (drag.mode === 'moveRect'){ const r = map.struct[drag.kind][drag.i], dx = Math.round(cx - drag.sx), dy = Math.round(cy - drag.sy), w = drag.r0.x1 - drag.r0.x0, h = drag.r0.y1 - drag.r0.y0;
       if (r && (dx || dy || drag.pushed)){ if (!drag.pushed){ pushUndo(); drag.pushed = true; }
-        r.x0 = clamp(drag.r0.x0 + dx, 0, map.cols - w); r.y0 = clamp(drag.r0.y0 + dy, 0, map.rows - h); r.x1 = r.x0 + w; r.y1 = r.y0 + h; structChanged(); } }
+        r.x0 = clamp(drag.r0.x0 + dx, 0, map.cols - w); r.y0 = clamp(drag.r0.y0 + dy, 0, map.rows - h); r.x1 = r.x0 + w; r.y1 = r.y0 + h;
+        if (r.arc){ r.arc.cx = drag.r0.arc.cx + r.x0 - drag.r0.x0; r.arc.cy = drag.r0.arc.cy + r.y0 - drag.r0.y0; } structChanged(); } }
     if (drag.mode === 'move' && selObj !== null){ if (!drag.pushed){ pushUndo(); drag.pushed = true; selObj = selObj; }
       const o = map.struct.objects[selObj]; if (o){ const [x, y] = objPos(cx - drag.ox, cy - drag.oy); o.x = +clamp(x, 0, map.cols).toFixed(3); o.y = +clamp(y, 0, map.rows).toFixed(3); structChanged(); } }
     if (drag.mode === 'measure'){ if (isHex(map)){ const h = pixelToHex(map, cx, cy); if (h) ruler.b = h; } else ruler.b = [clamp(ix, 0, map.cols - 1), clamp(iy, 0, map.rows - 1)]; }
@@ -2963,12 +2982,13 @@ $('libBackup').onclick = async () => { const list = await dbAll(); const out = {
 
 function cleanCustom(a){ return (Array.isArray(a) ? a : []).map(c => c && /^#[0-9a-f]{6}$/i.test(c.hex) && TERRAINS.some((t, i) => i < BUILTIN && t.key === c.gen) ? { gen: c.gen, hex: c.hex.toLowerCase() } : null); }
 function cleanStruct(o){ const s = emptyStruct(); if (!o) return s; const num = v => +v || 0;
-  for (const w of o.walls || []) s.walls.push({ x1: num(w.x1), y1: num(w.y1), x2: num(w.x2), y2: num(w.y2), mat: WALLMATS[w.mat] ? w.mat : 'stone', th: clamp(num(w.th) || .25, .05, 1) });
+  for (const w of o.walls || []) s.walls.push({ x1: num(w.x1), y1: num(w.y1), x2: num(w.x2), y2: num(w.y2), mat: WALLMATS[w.mat] ? w.mat : 'stone', th: clamp(num(w.th) || .25, .05, 2) });
   for (const d of o.doors || []) s.doors.push({ x: num(d.x) | 0, y: num(d.y) | 0, o: d.o === 'v' ? 'v' : 'h', type: ['door','double','secret','portcullis','window','opening','shoji'].includes(d.type) ? d.type : 'door' });
   for (const b of o.objects || []) if (STAMPS[b.t]) s.objects.push({ t: b.t, x: num(b.x), y: num(b.y), r: num(b.r), s: clamp(num(b.s) || 1, .2, 5), v: num(b.v) | 0, f: b.f ? 1 : 0, ...(/^#[0-9a-f]{6}$/i.test(b.c || '') ? { c: b.c } : {}), ...(LIGHT_PRESETS[b.lp] ? { lp: b.lp } : {}), ...(b.off ? { off: 1 } : {}) });
   for (const l of o.labels || []) if (l && String(l.text || '').trim()) s.labels.push({ x: num(l.x), y: num(l.y), text: String(l.text).slice(0, 80), size: clamp(num(l.size) || .5, .15, 3) });
   for (const r of o.roofs || []) s.roofs.push({ x0: num(r.x0), y0: num(r.y0), x1: num(r.x1), y1: num(r.y1), mat: ROOFMATS[r.mat] ? r.mat : 'tiles', ...(/^#[0-9a-f]{6}$/i.test(r.c || '') ? { c: r.c } : {}) });
-  for (const t of o.stairs || []) s.stairs.push({ x0: num(t.x0), y0: num(t.y0), x1: num(t.x1), y1: num(t.y1), dir: 'nsew'.includes(t.dir) && t.dir ? t.dir : 's' });
+  for (const t of o.stairs || []){ const a = t.arc, arc = a && [a.cx, a.cy, a.r0, a.r1, a.a0, a.a1].every(v => isFinite(+v)) && +a.r1 > +a.r0 && +a.r0 >= 0 ? { cx: num(a.cx), cy: num(a.cy), r0: num(a.r0), r1: num(a.r1), a0: num(a.a0), a1: clamp(num(a.a1), num(a.a0) - 12.6, num(a.a0) + 12.6) } : null;
+    s.stairs.push({ x0: num(t.x0), y0: num(t.y0), x1: num(t.x1), y1: num(t.y1), dir: 'nsew'.includes(t.dir) && t.dir ? t.dir : 's', ...(arc ? { arc, h0: clamp(num(t.h0), -40, 200), h1: clamp(num(t.h1), -40, 200) } : {}) }); }
   return s; }
 function projectJSON(m){ return { format: 'map-drawing/1', name: m.name, cols: m.cols, rows: m.rows, ft: m.ft, seed: m.seed, soft: m.soft, base: TERRAINS[m.base].key, R, terrains: TERRAINS.map(t => t.key), custom: m.custom || [], grid: m.grid, px: m.px, unit: m.unit, hcols: m.hcols, hrows: m.hrows, tod: m.tod || 'day', nightStr: m.nightStr, lightRad: m.lightRad, occlude: m.occlude !== false, season: m.season || 'summer', showTop: m.showTop !== false, rules: m.rules === '5e' ? '5e' : '35', struct: m.layers ? m.layers[0].struct : m.struct || emptyStruct(), labels: u8ToB64(new Uint8Array(m.layers ? m.layers[0].labels : m.labels)), hgt: hasHeights(m) ? u8ToB64(new Uint8Array(m.hgt.buffer.slice(0))) : undefined, relief: m.relief === 'contour' ? 'contour' : 'cliffs',
   layers: extraLayers(m).map(l => ({ ...l, labels: u8ToB64(new Uint8Array(l.labels)) })) }; }
