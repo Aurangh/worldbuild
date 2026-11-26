@@ -771,7 +771,8 @@ function drawArcStairs(ctx, s, P){ // curved / spiral stair: steps along an arc,
   const sc = document.createElement('canvas'); sc.width = ctx.canvas.width; sc.height = ctx.canvas.height; const sx = sc.getContext('2d'); sx.setTransform(ctx.getTransform()); sx.fillStyle = '#000';
   for (let i = 0; i < n; i++){ const h = Math.max(.25, h0 + (h1 - h0) * (i + .5) / n), a = A.a0 + da * i / n, b = A.a0 + da * (i + 1) / n;   // each step throws a shadow as long as its height
     for (const f of [.25, .5, .75, 1]){ sect(sx, a, b, SUN.dx * h * P * f, SUN.dy * h * P * f); sx.fill(); } }
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = SUN.a * .85; ctx.filter = `blur(${(P * .1).toFixed(1)}px)`; ctx.drawImage(sc, 0, 0); ctx.restore();
+  ctx.save(); if (Math.abs(da) > 4.7){ ctx.beginPath(); ctx.arc(cx, cy, r1, 0, 7); ctx.clip(); }   // a spiral inside a shaft: its shadow stays in the shaft
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = SUN.a * .85; ctx.filter = `blur(${(P * .1).toFixed(1)}px)`; ctx.drawImage(sc, 0, 0); ctx.restore();
   const top = [176, 168, 154], bot = [48, 45, 40], lw = Math.max(1, P / 32);
   const i0 = Math.abs(da) > 2 * Math.PI ? n - Math.round(n * 2 * Math.PI / Math.abs(da)) : 0;   // stacked turns: only the top turn shows
   for (let i = i0; i < n; i++){ const t = n - 1 > i0 ? (i - i0) / (n - 1 - i0) : 1, j = (rnd() - .5) * 14, c = bot.map((v, q) => Math.round(v + (top[q] - v) * t + j)), a = A.a0 + da * i / n, b = A.a0 + da * (i + 1) / n;
