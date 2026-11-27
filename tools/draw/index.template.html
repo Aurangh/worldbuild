@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><!-- SPDX-License-Identifier: MIT | Copyright (c) 2026 Rodrigo Díaz Morales | Developed with the help of Claude (Anthropic) | See LICENSE -->
+<meta charset="utf-8">
+<title>Map Drawing</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+:root{--bg:#121418;--panel:#1b1e24;--panel2:#232730;--line:#313644;--text:#d9dde5;--dim:#8b92a1;--acc:#d9a441;--acc2:#7fb4c9}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.4 system-ui,"Segoe UI",Ubuntu,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-columns:64px 1fr 280px;grid-template-rows:42px 1fr 26px;height:100vh}
+header{grid-column:1/4;display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+header .title{font-weight:600;letter-spacing:.3px;margin-right:8px;color:var(--acc)}
+header input.name{background:transparent;border:1px solid transparent;color:var(--text);font:inherit;font-weight:600;padding:4px 6px;border-radius:4px;width:200px}
+header input.name:hover,header input.name:focus{border-color:var(--line);outline:none;background:var(--panel2)}
+.sp{flex:1}
+button,.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:5px;padding:5px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:#4a5163;background:#2a2f3a}
+button.primary{background:#3a2f17;border-color:#6b5524;color:#f1d79c}
+button.primary:hover{background:#4a3c1c}
+button:disabled{opacity:.4;cursor:default}
+#tools{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;overflow-y:auto;min-height:0}
+#tools button{flex:none;width:50px;height:50px;padding:0;display:grid;place-items:center;position:relative}
+#tools button.on{background:#3a2f17;border-color:var(--acc)}
+#tools button svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#tools button kbd{position:absolute;right:2px;bottom:1px;font-size:9px;color:var(--dim);font-family:inherit}
+#tools hr{width:30px;border:0;border-top:1px solid var(--line);margin:4px 0}
+#view{position:relative;overflow:hidden;background:#0c0d10 radial-gradient(circle at 50% 50%,#16181d,#0b0c0f);cursor:crosshair;touch-action:none}
+#mapCanvas,#reliefCanvas,#structCanvas,.lcv{position:absolute;left:0;top:0;transform-origin:0 0}
+.lcv{pointer-events:none}
+#mapCanvas{box-shadow:0 0 0 1px #000,0 10px 40px rgba(0,0,0,.6)}
+#reliefCanvas,#structCanvas,#nightCanvas,#glowCanvas,#labelCanvas{pointer-events:none}
+.hpair{display:flex;gap:4px;align-items:center}.hpair input{width:4.6em}#stairEdRow{gap:6px}#stairEdRow button{flex:1}
+#nightCanvas,#glowCanvas,#labelCanvas{position:absolute;left:0;top:0;transform-origin:0 0;display:none}
+#nightCanvas{mix-blend-mode:multiply}#glowCanvas{mix-blend-mode:screen}
+#view.lit #nightCanvas,#view.lit #glowCanvas{display:block}#labelCanvas{display:block}
+header button.on{background:#1d2440;border-color:#7f95d8;color:#cfd9ff}
+.row select{max-width:130px}
+#overlay{position:absolute;inset:0;pointer-events:none}
+#side{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:10px}
+body.side-collapsed #app{grid-template-columns:64px 1fr 0}
+body.side-collapsed #side{display:none}
+@media (pointer:coarse){ body.side-collapsed #app{grid-template-columns:72px 1fr 0} }
+#sideTab{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:6;width:26px;height:64px;padding:0;border-radius:8px 0 0 8px;border-right:0;font-size:16px;background:rgba(27,30,36,.95);color:var(--text)}
+@media (pointer:coarse){ #sideTab{width:34px;height:84px;font-size:20px} }
+#side h3{cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+#side h3::before{content:'▾';font-size:10px;transition:transform .15s}
+#side .sec.closed > h3::before{transform:rotate(-90deg)}
+#side .sec.closed > :not(h3){display:none !important}
+#side h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:14px 0 6px;font-weight:600}
+#side h3:first-child{margin-top:2px}
+#terrains,#customs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#customs{margin-top:6px}.tsw{position:relative}.tsw .del{position:absolute;top:2px;right:2px;width:18px;height:18px;padding:0;font-size:11px;line-height:1;display:none}.tsw:hover .del{display:block}
+.palg{margin:4px 0 2px;font-size:10.5px;color:var(--dim)}.pals{display:flex;flex-wrap:wrap;gap:3px}
+.sw{width:25px;height:20px;border-radius:4px;border:1px solid rgba(0,0,0,.6);cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.sw.on{outline:2px solid var(--acc);outline-offset:1px}.sw.none{background:repeating-linear-gradient(45deg,#2a2d35 0 4px,#353943 4px 8px)}
+#activeCol{display:flex;align-items:center;gap:8px;margin:8px 0 4px}#activeCol .big{width:44px;height:22px;border-radius:4px;border:1px solid #000}
+#activeCol .rampv{display:flex;flex:1;height:14px;border-radius:3px;overflow:hidden}#activeCol .rampv i{flex:1}
+input[type=color]{width:34px;height:26px;padding:0;border:1px solid var(--line);background:none;border-radius:4px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}.tabs button{flex:1;padding:3px 6px;font-size:12px}.tabs button.on{border-color:var(--acc);background:#3a2f17}
+#stamps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stp{border:1px solid var(--line);border-radius:6px;background:#2a2d27;cursor:pointer;padding:2px;text-align:center}
+.stp{padding:4px}.stp canvas{width:100%;height:68px;display:block}.stp span{font-size:11.5px;margin-top:2px;color:var(--dim);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stp.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}.stp.on span{color:var(--text)}
+.tsw{display:flex;flex-direction:column;gap:3px;padding:4px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--panel2)}
+.tsw canvas{width:100%;height:46px;border-radius:3px;display:block}
+.tsw span{font-size:11.5px;display:flex;justify-content:space-between;color:var(--text)}
+.tsw span i{font-style:normal;color:var(--dim)}
+.tsw.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.row label{flex:1;color:var(--dim)}
+.row output{width:58px;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--acc)}
+select,input[type=number],input[type=text]{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:4px 6px;font:inherit}
+.info{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px;color:var(--dim)}
+.info b{color:var(--text);font-weight:600}
+#touchBar{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:none;gap:6px;padding:6px;background:rgba(27,30,36,.94);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:5;touch-action:manipulation}
+#touchBar button{min-width:46px;height:44px;font-size:15px;padding:0 10px}#touchBar .gap{width:6px}
+body.touch #touchBar{display:flex}
+button,select,input{touch-action:manipulation}
+#bSide{display:none}
+header{overflow-x:auto;overflow-y:hidden}header>*{flex:none}
+@media (pointer:coarse){ #app{grid-template-columns:72px 1fr 300px} #tools button{width:58px;height:58px} #tools button svg{width:28px;height:28px} .stp canvas{height:76px} .row input[type=checkbox]{width:20px;height:20px} input[type=range]{height:30px} header button{padding:8px 12px} .sw{width:30px;height:24px} }
+@media (max-width:1100px){ #app{grid-template-columns:64px 1fr} body.side-collapsed #app{grid-template-columns:64px 1fr} #side{position:fixed;right:0;top:42px;bottom:26px;width:290px;z-index:20;transform:translateX(105%);transition:transform .2s;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
+  body.side-open #side{transform:none} #bSide{display:inline-block} }
+#layers{display:flex;flex-direction:column;gap:4px}
+#side{overflow-x:hidden}#side .row select{min-width:0}
+.lay{display:grid;grid-template-columns:auto minmax(0,1fr) auto;min-width:0;align-items:center;gap:6px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);cursor:pointer}
+.lay.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.lay .nm{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}.lay .nm small{color:#e48a8a;margin-left:4px}
+.lay .ctl{display:flex;gap:2px}.lay .ctl button{padding:0 5px;height:22px;font-size:11px}
+.lay input[type=range]{grid-column:1/4;height:16px;margin:0}
+footer{grid-column:1/4;display:flex;gap:18px;align-items:center;padding:0 12px;background:var(--panel);border-top:1px solid var(--line);color:var(--dim);font-size:12px;font-variant-numeric:tabular-nums}
+footer .saved{margin-left:auto}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:18px 20px;min-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.7)}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog h2{margin:0 0 12px;font-size:16px}
+dialog .grid2{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center}
+dialog .grid2 label{color:var(--dim)}
+dialog .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+dialog .hint{color:var(--dim);font-size:12px;margin-top:8px}
+#libList{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;max-height:60vh;overflow:auto;min-width:560px;padding:2px}
+.card{border:1px solid var(--line);border-radius:8px;background:var(--panel2);overflow:hidden;display:flex;flex-direction:column}
+.card img{width:100%;height:110px;object-fit:cover;background:#0c0d10;display:block;cursor:pointer}
+.card .meta{padding:6px 8px;font-size:12px}
+.card .meta b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .meta small{color:var(--dim)}
+.card .acts{display:flex;gap:4px;padding:0 6px 6px}
+.card .acts button{padding:2px 6px;font-size:11px;flex:1}
+.card.cur{border-color:var(--acc)}
+.prof{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.prof label{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.prof label:has(input:checked){border-color:var(--acc);background:#2a2416}
+.prof small{display:block;color:var(--dim)}
+#busy{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;place-items:center;z-index:50;font-size:15px}
+#busy.on{display:grid}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="title">Map Drawing</span>
+    <input class="name" id="mapName" spellcheck="false" title="Map name">
+    <button id="bNew">New</button>
+    <button id="bLib">Library</button>
+    <span style="width:10px"></span>
+    <button id="bUndo" title="Undo (Ctrl+Z)">Undo</button>
+    <button id="bRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+    <button id="bFit" title="Fit map to view (0)">Fit</button>
+    <button id="bTop" class="on" title="Show or hide roofs and tree canopies (K). Hidden: see inside buildings; trees leave their shade and trunk">⌂ Roofs &amp; trees</button>
+    <select id="seasonSel" title="Season"><option value="spring">🌸 Spring</option><option value="summer" selected>☀ Summer</option><option value="autumn">🍂 Autumn</option><option value="winter">❄ Winter</option></select>
+    <select id="todSel" title="Time of day (N cycles) — fires, braziers, candles, torches, lanterns, windows and lava glow at dusk and night"><option value="day">☀ Day</option><option value="dawn">🌅 Dawn</option><option value="golden">🌇 Golden hour</option><option value="dusk">🌆 Dusk</option><option value="night">☾ Night</option></select>
+    <span class="sp"></span>
+    <button id="bSide" title="Show or hide the side panel">☰ Panel</button>
+    <button id="bImport">Import project</button>
+    <button id="bExport" class="primary">Export…</button>
+  </header>
+
+  <nav id="tools">
+    <button data-tool="brush" title="Terrain brush (B)"><svg viewBox="0 0 24 24"><path d="M4 20c2 0 4-1 4-3s-1-3-3-3-3 2-3 4"/><path d="M8 15l10-10 2 2-10 10"/></svg><kbd>B</kbd></button>
+    <button data-tool="cell" title="Cell paint (C)"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="13" width="7" height="7" fill="currentColor"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/></svg><kbd>C</kbd></button>
+    <button data-tool="rect" title="Rectangle fill (R)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" stroke-dasharray="3 2"/></svg><kbd>R</kbd></button>
+    <button data-tool="fill" title="Flood fill (F)"><svg viewBox="0 0 24 24"><path d="M5 11l7-7 7 7-7 7z"/><path d="M19 15c1 1.5 1.5 2.5 1.5 3.2a1.5 1.5 0 0 1-3 0c0-.7.5-1.7 1.5-3.2z"/></svg><kbd>F</kbd></button>
+    <button data-tool="eraser" title="Eraser – paints base terrain (E)"><svg viewBox="0 0 24 24"><path d="M8 20h12"/><path d="M4 15l9-9 6 6-7 7H8z"/></svg><kbd>E</kbd></button>
+    <button data-tool="pick" title="Terrain picker (I)"><svg viewBox="0 0 24 24"><path d="M14 4l6 6-2 2-6-6z"/><path d="M13 9l-8 8v3h3l8-8"/></svg><kbd>I</kbd></button>
+    <button data-tool="height" title="Ground height (G) — paint raised or sunken ground, 5 ft a step · Shift-click picks a height"><svg viewBox="0 0 24 24"><path d="M2 19l6-9 4 5 3-4 7 8z"/><path d="M8 10l1.5 2.5"/></svg><kbd>G</kbd></button>
+    <hr>
+    <button data-tool="wall" title="Wall – click corner to corner, click last point or Esc to finish (W)"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="M3 12h18M9 6v6M15 12v6"/></svg><kbd>W</kbd></button>
+    <button data-tool="room" title="Room – drag: floor in current terrain + walls (O)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" stroke-width="3"/><rect x="8" y="8" width="8" height="8" stroke-dasharray="2 2"/></svg><kbd>O</kbd></button>
+    <button data-tool="door" title="Door / window on a square edge (D)"><svg viewBox="0 0 24 24"><path d="M6 21V4h12v17M3 21h18"/><circle cx="15" cy="13" r=".8" fill="currentColor"/></svg><kbd>D</kbd></button>
+    <button data-tool="stairs" title="Stairs (T) — straight, curved or a spiral in a narrow pillar; pick the shape in the panel"><svg viewBox="0 0 24 24"><path d="M4 20h4v-4h4v-4h4V8h4V4"/></svg><kbd>T</kbd></button>
+    <button data-tool="roof" title="Roof – drag over a building (U). Best on a Roofs layer"><svg viewBox="0 0 24 24"><path d="M3 12l9-7 9 7M5 10v9h14v-9"/><path d="M3 12h18" stroke-dasharray="2 2"/></svg><kbd>U</kbd></button>
+    <button data-tool="xstruct" title="Remove wall, door or stairs (X)"><svg viewBox="0 0 24 24"><path d="M3 6h10v6H3z"/><path d="M15 14l6 6M21 14l-6 6"/></svg><kbd>X</kbd></button>
+    <hr>
+    <button data-tool="stamp" title="Place object (S) · , and . rotate"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="6"/><path d="M12 16v5M8 21h8"/></svg><kbd>S</kbd></button>
+    <button data-tool="scatter" title="Scatter brush (A)"><svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="2.5"/><circle cx="16" cy="6" r="2"/><circle cx="12" cy="14" r="3"/><circle cx="18" cy="17" r="2"/><circle cx="6" cy="18" r="1.6"/></svg><kbd>A</kbd></button>
+    <button data-tool="label" title="Label – click to add, click a label to edit, drag to move (L). A number makes a room badge"><svg viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg><kbd>L</kbd></button>
+    <button data-tool="select" title="Select &amp; move (V) — drag objects, labels, roofs or stairs · arrows nudge · Del deletes · , . rotate · - = resize"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg><kbd>V</kbd></button>
+    <hr>
+    <button data-tool="measure" title="Ruler (M)"><svg viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg><kbd>M</kbd></button>
+    <button data-tool="pan" title="Pan (H, or hold Space / right-drag)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg><kbd>H</kbd></button>
+  </nav>
+
+  <main id="view">
+    <canvas id="mapCanvas"></canvas>
+    <canvas id="reliefCanvas"></canvas>
+    <canvas id="structCanvas"></canvas>
+    <canvas id="nightCanvas"></canvas>
+    <canvas id="glowCanvas"></canvas>
+    <canvas id="labelCanvas"></canvas>
+    <canvas id="overlay"></canvas>
+    <button id="sideTab" title="Hide or show the side panel">›</button>
+    <div id="touchBar">
+      <button data-a="undo" title="Undo">↶</button><button data-a="redo" title="Redo">↷</button><span class="gap"></span>
+      <button data-a="rl" title="Rotate left">⟲</button><button data-a="rr" title="Rotate right">⟳</button><button data-a="smaller" title="Smaller">−</button><button data-a="bigger" title="Bigger">+</button><button data-a="del" title="Delete selected object">Delete</button><span class="gap"></span>
+      <button data-a="done" title="Finish wall / deselect / clear ruler">Done</button><button data-a="fit" title="Fit map">Fit</button>
+    </div>
+  </main>
+
+  <aside id="side">
+    <h3>Layers</h3>
+    <div id="layers"></div>
+    <div class="row"><select id="newLayerType" style="flex:1;max-width:none"><option value="empty">Empty layer</option><option value="roofs">Roofs</option><option value="upper">Upper floor</option><option value="event">Event / "after" version</option><option value="dm">DM notes (DM export only)</option></select><button id="bAddLayer">+ Add</button></div>
+
+    <h3>Terrain</h3>
+    <div id="terrains"></div>
+    <div class="palg" id="customsHead" style="display:none;margin-top:8px">This map's recoloured terrains</div>
+    <div id="customs"></div>
+
+    <h3>Colour</h3>
+    <div id="palette"></div>
+    <div id="activeCol"><div class="big" id="acBig"></div><div class="rampv" id="acRamp"></div></div>
+    <div class="row"><label for="pickCol">Custom colour</label><input type="color" id="pickCol" value="#4d7a31"><input type="text" id="pickHex" value="#4d7a31" style="width:76px"></div>
+    <div class="row"><button id="bRecolour" style="flex:1">Paint selected terrain in this colour</button></div>
+    <div class="row"><label for="tintObj">Tint new objects</label><input type="checkbox" id="tintObj"></div>
+
+    <h3>Brush</h3>
+    <div class="row"><label for="brushSize">Size (squares)</label><output id="brushOut"></output></div>
+    <input type="range" id="brushSize" min="0.25" max="8" step="0.25" value="1.5">
+    <div id="heightRow" style="display:none"><div class="row"><label for="hLevel">Ground height</label><output id="hOut">Ground level</output></div>
+    <input type="range" id="hLevel" min="-3" max="6" step="1" value="1">
+    <div class="row"><label for="reliefSel">Height style</label><select id="reliefSel"><option value="cliffs">Natural cliffs</option><option value="contour">Map contours</option></select></div></div>
+
+    <h3>Objects</h3>
+    <div class="tabs" id="stampTabs"><button data-cat="nature" class="on">Nature</button><button data-cat="ruins">Ruins</button><button data-cat="dungeon">Dungeon</button><button data-cat="furniture">Furniture</button><button data-cat="camp">Camp</button><button data-cat="world">World map</button><button data-cat="japan">Japan</button><button data-cat="cave">Caverns</button><button data-cat="jungle">Jungle</button><button data-cat="ship">Ships</button><button data-cat="steam">Steampunk</button></div>
+    <div id="stamps"></div>
+    <div class="row"><label for="objSize">Object size</label><output id="objSizeOut"></output></div>
+    <input type="range" id="objSize" min="0.4" max="2.5" step="0.05" value="1">
+    <div class="row"><label for="objRandRot">Random rotation</label><input type="checkbox" id="objRandRot" checked></div>
+    <div class="row"><label for="objSnap">Snap (half squares / hex centres)</label><input type="checkbox" id="objSnap"></div>
+    <div class="row" id="lightRow" style="display:none"><label for="lightPreset" id="lightRowLbl">Light</label><select id="lightPreset"></select><input type="checkbox" id="lightOn" checked title="Lit"></div>
+    <div class="row"><label for="scatterSet">Scatter</label><select id="scatterSet"></select></div>
+    <div class="row"><label for="density">Scatter density</label><output id="densityOut"></output></div>
+    <input type="range" id="density" min="0.1" max="1.5" step="0.05" value="0.7">
+
+    <h3>Structure</h3>
+    <div class="row"><label for="wallMat">Wall material</label><select id="wallMat"><option value="stone">Stone</option><option value="wood">Wood</option><option value="cave">Natural cave</option><option value="rampart">Fortress wall-walk</option><option value="balustrade">Balustrade (low, lets light through)</option><option value="hull">Ship hull (tarred)</option><option value="bamboo">Bamboo</option><option value="brasswall">Brass plate</option><option value="ironwall">Riveted iron</option></select></div>
+    <div class="row"><label for="wallTh">Wall thickness</label><select id="wallTh"><option value="0.15">Thin</option><option value="0.25" selected>Normal</option><option value="0.4">Thick</option><option value="1">Wall-walk, 1 square</option><option value="2">Wall-walk, 2 squares</option></select></div>
+    <div class="row"><label for="roomShape">Room shape</label><select id="roomShape"><option value="rect">Rectangle (drag)</option><option value="poly">Polygon (click corners)</option><option value="circle">Round (drag radius)</option></select></div>
+    <div class="row"><label for="roofMat">Roof</label><select id="roofMat"><option value="tiles">Clay tiles</option><option value="slate">Slate</option><option value="thatch">Thatch</option><option value="shingles">Wood shingles</option><option value="palm">Palm thatch</option><optgroup label="Japan"><option value="kawara">Kawara tiles</option><option value="hiwada">Cypress bark</option><option value="copper">Copper (verdigris)</option></optgroup><optgroup label="Steampunk"><option value="ironsheet">Corrugated iron</option><option value="copper">Copper (verdigris)</option></optgroup></select></div>
+    <div class="row"><label for="doorType">Door type</label><select id="doorType"><option value="door">Door</option><option value="double">Double door</option><option value="secret">Secret door</option><option value="portcullis">Portcullis</option><option value="window">Window</option><option value="opening">Open archway</option><option value="shoji">Shoji screen</option></select></div>
+    <div id="stairRow" style="display:none">
+    <div class="row" id="stairShapeRow"><label for="stairShape">Stairs</label><select id="stairShape"><option value="straight">Straight (drag uphill)</option><option value="grand">Grand staircase (drag uphill)</option><option value="half">Half-turn (drag uphill)</option><option value="curved">Curved (centre, edge, sweep)</option><option value="pillar">Spiral in a narrow pillar (tap)</option></select></div>
+    <div id="grandRows"><div class="row"><label for="grandW">Central flight</label><select id="grandW"><option value="2">10 ft wide</option><option value="3" selected>15 ft wide</option><option value="4">20 ft wide</option></select></div>
+    <div class="row"><label for="sideW">Side flights</label><select id="sideW"><option value="1">5 ft wide</option><option value="2" selected>10 ft wide</option><option value="3">15 ft wide</option></select></div>
+    <div class="row"><label for="sideTurn">Side flights end</label><select id="sideTurn"><option value="90" selected>facing the entrance</option><option value="45">half-way round</option><option value="0">facing left and right</option></select></div>
+    <div class="row"><label for="curveR">Curve radius</label><select id="curveR"><option value="2" selected>10 ft</option><option value="3">15 ft</option></select></div>
+    <div class="row"><label for="sideRun">Straight run after</label><select id="sideRun"><option value="0" selected>none</option><option value="1">5 ft</option><option value="2">10 ft</option><option value="3">15 ft</option><option value="4">20 ft</option></select></div></div>
+    <div id="halfRows"><div class="row"><label for="halfTurn">Turn</label><select id="halfTurn"><option value="180" selected>180° (U)</option><option value="90">90° (L)</option></select></div>
+    <div class="row"><label for="turnSide">Turns to the</label><select id="turnSide"><option value="r" selected>right</option><option value="l">left</option></select></div>
+    <div class="row"><label for="halfWell">Between flights</label><select id="halfWell"><option value="0" selected>a wall</option><option value="1">a 5 ft open well</option></select></div>
+    <div class="row"><label for="landD">Landing depth</label><select id="landD"><option value="1" selected>5 ft</option><option value="2">10 ft</option></select></div></div>
+    <div class="row" id="stairWRow"><label for="stairW">Stair width</label><select id="stairW"><option value="1">5 ft</option><option value="2">10 ft</option></select></div>
+    <div class="row" id="pillarRow"><label for="pillarD">Pillar width</label><select id="pillarD"><option value="2">10 ft</option><option value="3">15 ft</option></select></div>
+    <div class="row" id="stairHRow"><label for="stairH0">Height, ft</label><span class="hpair"><input type="number" id="stairH0" value="0" step="5" min="-200" max="1000"> → <input type="number" id="stairH1" placeholder="auto" step="5" min="-200" max="1000"></span></div>
+    <div class="row" id="stairEdRow"><button id="stairRev" type="button">Reverse up / down</button><button id="stairMir" type="button">Mirror</button></div>
+    </div>
+    <div class="row"><label for="showSecret">Show secret doors</label><input type="checkbox" id="showSecret" checked></div>
+
+    <h3>Labels</h3>
+    <div class="row"><label for="labelSize">Label size</label><select id="labelSize"><option value="0.35">Small</option><option value="0.5" selected>Medium</option><option value="0.8">Large</option><option value="1.3">Title</option></select></div>
+    <div class="row"><label for="showLabels">Show labels</label><input type="checkbox" id="showLabels" checked></div>
+
+    <h3>Pen &amp; touch</h3>
+    <div class="row"><label for="fingerNav">Fingers only pan &amp; zoom</label><input type="checkbox" id="fingerNav"></div>
+    <div class="row"><label for="penPressure">Pen pressure sets brush size</label><input type="checkbox" id="penPressure"></div>
+    <div class="row"><label for="showTouchBar">Show action bar</label><input type="checkbox" id="showTouchBar"></div>
+
+    <h3>Look</h3>
+    <div class="row"><label for="nightStr">Night darkness</label><output id="nightOut"></output></div>
+    <input type="range" id="nightStr" min="0.3" max="0.95" step="0.05" value="0.7">
+    <div class="row"><label for="lightRad">Light radius</label><output id="lightOut"></output></div>
+    <input type="range" id="lightRad" min="0.5" max="2.5" step="0.1" value="1">
+    <div class="row"><label for="occlude">Walls block light</label><input type="checkbox" id="occlude" checked></div>
+    <div class="row"><label for="lightRules">Light ranges</label><select id="lightRules"><option value="35">D&amp;D 3.5</option><option value="5e">D&amp;D 5e</option></select></div>
+    <div class="row"><label for="showRanges">Show light ranges</label><input type="checkbox" id="showRanges"></div>
+    <div class="row"><label for="soft">Edge blending</label><output id="softOut"></output></div>
+    <input type="range" id="soft" min="0" max="1.5" step="0.05" value="0.6">
+    <div class="row"><label>Textures</label><button id="bReroll" title="New random variation of all textures">Re-roll</button></div>
+
+    <h3>Grid</h3>
+    <div class="row"><label for="gridOn">Show grid</label><input type="checkbox" id="gridOn" checked></div>
+    <div class="row"><label for="gridOp">Opacity</label><output id="gridOpOut"></output></div>
+    <input type="range" id="gridOp" min="0.05" max="0.8" step="0.05" value="0.3">
+
+    <h3>Ruler</h3>
+    <div class="row"><select id="ruleMode" style="width:100%">
+      <option value="35">D&amp;D 3.5 diagonals (5/10/5)</option>
+      <option value="flat">Every square = 1 (5e style)</option>
+      <option value="euclid">Straight-line distance</option>
+    </select></div>
+
+    <h3>Packs</h3>
+    <div id="packs"></div>
+
+    <h3>Map</h3>
+    <div class="info" id="mapInfo"></div>
+    <div class="row"><button id="bMapSet" style="flex:1">Map settings…</button></div>
+  </aside>
+
+  <footer>
+    <span id="stCell">—</span>
+    <span id="stZoom"></span>
+    <span id="stLayer"></span>
+    <span id="stTool"></span>
+    <a href="https://aurangbuilds.es/" style="color:var(--dim)" target="_blank" rel="noopener">aurangbuilds.es · MIT</a>
+    <span class="saved" id="stSave">—</span>
+  </footer>
+</div>
+
+<dialog id="dlgNew">
+  <h2 id="nTitle">New map</h2>
+  <div class="grid2">
+    <label>Name</label><input type="text" id="nName" value="Untitled map">
+    <label>Grid</label><select id="nGrid"><option value="square">Squares</option><option value="hexflat">Hexes — flat top</option><option value="hexpointy">Hexes — pointy top</option></select>
+    <label id="nColsL">Width (squares)</label><input type="number" id="nCols" value="30" min="2" max="200">
+    <label id="nRowsL">Height (squares)</label><input type="number" id="nRows" value="20" min="2" max="200">
+    <label id="nPxL">Square size (px)</label><input type="number" id="nPx" value="40" min="8" max="400">
+    <label id="nFtL">Distance per square</label><span style="display:flex;gap:6px"><input type="number" id="nFt" value="5" min="0.1" step="any" style="width:90px"><input type="text" id="nUnit" value="ft" style="width:70px" maxlength="12"></span>
+    <label id="nBaseL">Base terrain</label><select id="nBase"></select>
+  </div>
+  <div class="hint" id="nHint"></div>
+  <div class="actions"><button id="nCancel">Cancel</button><button class="primary" id="nOk">Create</button></div>
+</dialog>
+
+<dialog id="dlgLib">
+  <h2>Map library</h2>
+  <div id="libList"></div>
+  <div class="actions"><button id="libBackup">Back up library (.json)</button><span class="sp"></span><button id="libClose">Close</button></div>
+</dialog>
+
+<dialog id="dlgExp">
+  <h2>Export</h2>
+  <div class="prof">
+    <label><input type="radio" name="prof" value="tracker" checked><span><b>Tracker</b> — <span id="eTrkTxt">40 px</span>, no grid<small id="eTrkHint">Background image for the combat tracker.</small></span></label>
+    <label><input type="radio" name="prof" value="player"><span><b>Player art</b> — high resolution<small>For sharing in Discord. Secret doors hidden. Grid optional.</small></span></label>
+    <label><input type="radio" name="prof" value="dm"><span><b>DM map</b> — high resolution<small>Same as player art, with secret doors marked.</small></span></label>
+  </div>
+  <div class="grid2" id="expPlayerOpts">
+    <label>Pixels per square</label><input type="number" id="ePx" value="80" min="10" max="300">
+    <label>Draw grid</label><input type="checkbox" id="eGrid">
+    <label>Include labels</label><input type="checkbox" id="eLabels">
+    <label>Roofs &amp; tree canopies</label><input type="checkbox" id="eTop" checked>
+    <label>Season</label><select id="eSeason"><option value="spring">Spring</option><option value="summer">Summer</option><option value="autumn">Autumn</option><option value="winter">Winter</option></select>
+    <label>Time of day</label><select id="eTod"><option value="day">Day</option><option value="dawn">Dawn</option><option value="golden">Golden hour</option><option value="dusk">Dusk</option><option value="night">Night</option></select>
+  </div>
+  <div class="hint" id="eHint"></div>
+  <div class="actions">
+    <button id="eJson">Project file (.json)</button>
+    <span class="sp"></span>
+    <button id="eCancel">Close</button>
+    <button class="primary" id="eOk">Export PNG</button>
+  </div>
+</dialog>
+
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+<div id="busy">Rendering…</div>
+
+<script>
+/*@modules*/
+</script>
+</body>
+</html>

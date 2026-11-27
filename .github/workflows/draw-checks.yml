@@ -1,0 +1,21 @@
+name: Map Drawing checks
+on:
+  pull_request:
+    paths: ['tools/draw/**', 'site/draw/**', 'tests/draw/**', '.github/workflows/draw-checks.yml']
+  push:
+    branches: [main]
+    paths: ['tools/draw/**', 'site/draw/**', 'tests/draw/**']
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Build is current, no duplicate names
+        run: python3 tools/draw/check.py
+      - name: Install browser
+        run: pip install playwright pillow && python3 -m playwright install --with-deps chromium
+      - name: Browser tests
+        run: python3 tests/draw/run.py
