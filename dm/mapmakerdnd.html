@@ -212,6 +212,7 @@ code{background:#12141a;padding:0 3px;border-radius:3px}
   <button id="notesBtn" class="gmonly">📖 Encounter</button>
   <button id="roomsBtn" class="gmonly" title="open the encounter document at the rooms">🏠 Rooms</button>
   <button id="postBtn" class="gmonly">✍ Post</button>
+  <button id="partyBtn" class="gmonly" title="import the party from the character sheet's stat lines (.md), with optional token images">🧙 Party…</button><input id="partyFile" type="file" accept=".md,.txt,image/*" multiple hidden>
   <button id="bgRemove" class="gmonly" style="display:none">Remove bg</button>
   <button id="filesBtn" class="gmonly">🗂 Maps</button>
   <button id="saveBtn" class="gmonly">Save</button>
@@ -328,6 +329,11 @@ code{background:#12141a;padding:0 3px;border-radius:3px}
     <button class="tool" data-t="unfog">☀ Unfog <small class="hint">U</small></button>
     <label class="ck" title="PC tokens reveal fog within their vision radius when they move"><input id="autoFog" type="checkbox"> auto-reveal (PC vision)</label>
     <button id="revealNow" class="ib" title="reveal fog around all PCs now">👁 Reveal from PCs</button>
+    <div class="gmonly" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button id="ovLoad" class="ib" title="load a lights and layers overlay (map-overlay JSON) made in the map drawing tool">💡 Lights &amp; layers…</button><input id="ovFile" type="file" accept=".json,application/json" hidden>
+      <select id="ovTime" style="display:none" title="time of day"></select><button id="ovClear" class="ib" style="display:none" title="remove the overlay from this map">✕</button>
+      <span id="ovLayers" style="display:flex;gap:8px;flex-wrap:wrap"></span>
+    </div>
     <label class="ck" title="illumination outside any drawn room (rooms can override it)"><span class="stat">Ambient</span><select id="ambLight" style="flex:1"><option value="bright">bright</option><option value="dim">dim</option><option value="dark">dark</option></select></label>
     <label class="ck" title="how light the fog looks in the player view and PNG export (always opaque, so unexplored terrain stays hidden)"><span class="stat">Fog</span><input id="fogL" type="range" min="8" max="60" step="2" style="flex:1;min-width:0"></label>
     <button class="tool" data-t="room">🏠 Room <small class="hint">O</small></button>
@@ -653,7 +659,7 @@ function campRec(c,create){c=(c||'').trim();if(!c)return null;const m=settings.c
 function hookFor(c){const r=campRec(c);return(r&&r.webhook)||''}
 function curHook(){return st.campaign?hookFor(st.campaign):(settings.webhook||'')}
 function freshState(){return{
-  v:8,fileId:null,campaign:'',pubId:null,pubAt:0,title:'New Encounter',cols:40,rows:24,cs:28,autoFog:true,ambient:'bright',fogL:32,
+  v:8,fileId:null,campaign:'',pubId:null,pubAt:0,title:'New Encounter',cols:40,rows:24,cs:28,autoFog:true,ambient:'bright',fogL:32,overlay:null,
   palette:[{c:'#7d6608',n:'rock',los:true},{c:'#aed6f1',n:'water'},{c:'#cacfd2',n:'open deck'},{c:'#1b2631',n:'wall',los:true},{c:'#f4f6f7',n:'floor'}],
   terrain:Array(40*24).fill(0),fog:Array(40*24).fill(0),roomMap:Array(40*24).fill(0),rooms:[],
   zones:[],traps:[],focus:0,followParty:true,share:null,
@@ -938,6 +944,7 @@ function draw(){
     if(amb!=='bright'||st.rooms.some(r=>r.light&&r.light!=='bright')){ // shade dim / dark areas so everyone can see the lighting
       for(let y=Y0;y<=Y1;y++)for(let x=X0;x<=X1;x++){const n=st.roomMap[idx(x,y)],L=n?(rl[n]||amb):amb;if(L==='bright')continue;
         ctx.fillStyle=L==='dark'?'rgba(6,8,28,.52)':'rgba(6,8,28,.26)';ctx.fillRect(M+x*cs,M+y*cs,cs,cs)}}}
+  drawOverlayLight(ctx,PL,cs,V);
   ctx.strokeStyle=st.bgImg?'rgba(255,255,255,.18)':'rgba(0,0,0,.25)';ctx.lineWidth=1;ctx.beginPath();
   for(let x=0;x<=st.cols;x++){ctx.moveTo(M+x*cs+.5,M);ctx.lineTo(M+x*cs+.5,H)}for(let y=0;y<=st.rows;y++){ctx.moveTo(M,M+y*cs+.5);ctx.lineTo(W,M+y*cs+.5)}ctx.stroke();
   if(!PL&&(st.zones||[]).length){ctx.textAlign='left';ctx.textBaseline='top';
@@ -963,6 +970,7 @@ function draw(){
     if(!PL&&t.maxHp>0){const w=s-8,pct=Math.max(0,Math.min(1,t.hp/t.maxHp));ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(cx-w/2,cy+r-4,w,4);ctx.fillStyle=pct>.5?'#4caf50':pct>.25?'#ffb300':'#e53935';ctx.fillRect(cx-w/2,cy+r-4,w*pct,4)}
     if(!PL&&t.pc&&t.vision>0&&t.id===ui.sel){const R=Math.floor(t.vision/5)*cs;ctx.strokeStyle='rgba(91,155,213,.5)';ctx.setLineDash([4,4]);ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.stroke();ctx.setLineDash([])}}
   if(ui.drag&&ui.drag.start){const t=ui.drag.t,sq=dist35(t.x-ui.drag.start.x,t.y-ui.drag.start.y);if(sq>0){const s=t.size*st.cs,cx=M+t.x*st.cs+s/2,cy=M+t.y*st.cs,txt=(sq*5)+' ft';ctx.font='bold 13px system-ui';const tw=ctx.measureText(txt).width;ctx.fillStyle='rgba(0,0,0,.8)';ctx.fillRect(cx-tw/2-5,cy-24,tw+10,18);ctx.fillStyle='#ffd54a';ctx.fillText(txt,cx,cy-15)}}
+  drawOverlayLayers(ctx,PL,cs);
   const fogC=fogColor();
   for(let y=Y0;y<=Y1;y++)for(let x=X0;x<=X1;x++)if(st.fog[idx(x,y)]){ctx.fillStyle=PL?fogC:'rgba(25,25,70,.55)';ctx.fillRect(M+x*cs,M+y*cs,cs,cs);if(!PL){ctx.strokeStyle='rgba(120,120,200,.35)';ctx.beginPath();ctx.moveTo(M+x*cs,M+y*cs);ctx.lineTo(M+x*cs+cs,M+y*cs+cs);ctx.stroke()}}
   if(!PL&&st.share){const r=st.share,foc=st.focus===-3,rw=(r.x2-r.x1+1)*cs,rh=(r.y2-r.y1+1)*cs;
@@ -1227,8 +1235,8 @@ function saveLib(){idb.set('lib',JSON.parse(JSON.stringify(lib)))}
 function besAdd(e){const i=lib.findIndex(k=>k.name.toLowerCase()===e.name.toLowerCase());if(i>=0)lib[i]=Object.assign(lib[i],e);else lib.push(e);
   saveLib();renderLib();renderBes();msg(e.name+(i>=0?' updated in':' saved to')+' bestiary')}
 function tokenFrom(e,n,i,room){const t={id:Date.now()+Math.random(),name:n>1?e.name+' '+i:e.name,letter:(e.letter||e.name[0].toUpperCase())+(n>1?i:''),
-  color:e.color||'#c0392b',size:e.size||1,img:e.img||null,init:0,initMod:e.initMod||0,vision:e.vision||0,vmode:e.vmode||'normal',dv:e.dv==null?60:e.dv,cr:crParse(e.cr),ac:e.ac||0,hp:e.maxHp||0,maxHp:e.maxHp||0,
-  pc:!!e.pc,conds:[],buffs:[],saves:Object.assign({},e.saves||{}),atks:JSON.parse(JSON.stringify(e.atks||[])),x:-1,y:-1};if(room)t.room=room;return t}
+  color:e.color||'#c0392b',size:e.size||1,img:e.img||null,init:0,initMod:e.initMod||0,vision:e.vision||0,vmode:e.vmode||'normal',dv:e.dv==null?60:e.dv,cr:crParse(e.cr),ac:e.ac||0,hp:e.cur!=null?e.cur:(e.maxHp||0),maxHp:e.maxHp||0,
+  pc:!!e.pc,conds:[],buffs:[],saves:Object.assign({},e.saves||{}),atks:JSON.parse(JSON.stringify(e.atks||[])),x:-1,y:-1};if(room)t.room=room;if(e.id)t.sid=e.id;if(e.speed!=null)t.speed=e.speed;return t}
 function renderLib(){const L=$('#liblist');L.innerHTML='';
   if(!lib.length){L.innerHTML='<small class="hint">save combatants with 📚, or build entries in the 🐉 builder</small>';return}
   lib.forEach((e,i)=>{const d=document.createElement('div');d.className='libitem';
@@ -1537,14 +1545,17 @@ function mdToHtml(md){const lines=String(md||'').replace(/\r/g,'').split('\n');l
     else{if(inList){html+='</ul>';inList=false}html+='<p style="margin:4px 0">'+inline(raw)+'</p>'}}
   if(inList)html+='</ul>';if(inCode)html+='</pre>';return html}
 function parseStatLine(line){const body=String(line).replace(/^\s*[-*]\s+/,'');if(!/\|/.test(body))return null;const parts=body.split('|').map(s=>s.trim()),name=parts[0];if(!name)return null;
-  let ac=0,hp=0,initMod=0,size=1,count=1,cr=0,matched=false;const saves={},atks=[],SZ={m:1,s:1,l:2,h:3,g:4};
+  let ac=0,hp=0,initMod=0,size=1,count=1,cr=0,matched=false,pc=false,cur=null,speed=null,id=null;const saves={},atks=[],SZ={m:1,s:1,l:2,h:3,g:4};
   for(let i=1;i<parts.length;i++){const p=parts[i];let m;if(m=p.match(/^ac\s*:?\s*(\d+)/i)){ac=+m[1];matched=true}else if(m=p.match(/^hp\s*:?\s*(\d+)/i)){hp=+m[1];matched=true}
     else if(m=p.match(/^cr\s*:?\s*(\d+\s*\/\s*\d+|[\d.]+)/i)){cr=crParse(m[1]);matched=true}
     else if(m=p.match(/^init\s*:?\s*([+-]?\d+)/i)){initMod=+m[1];matched=true}else if(m=p.match(/^size\s*:?\s*([mslhg])/i)){size=SZ[m[1].toLowerCase()];matched=true}
     else if(m=p.match(/^x\s*(\d+)$/i)){count=+m[1];matched=true}else if(/^[mslhg]$/i.test(p)){size=SZ[p.toLowerCase()];matched=true}
     else if(m=p.match(/^(fort|ref|will)\s*:?\s*([+-]?\d+)/i)){saves[m[1].toLowerCase()]=+m[2];matched=true}
-    else if(m=p.match(/^atk\s*:?\s*(.+)/i)){m[1].split(';').forEach(s=>{const a=parseAtk(s);if(a)atks.push(a)});matched=true}}
-  if(!matched)return null;return{name,ac,hp,cr,initMod,size,count,saves,atks}}
+    else if(m=p.match(/^atk\s*:?\s*(.+)/i)){m[1].split(';').forEach(s=>{const a=parseAtk(s);if(a)atks.push(a)});matched=true}
+    // parts written by the character sheet (older trackers skip them): pc, cur n, speed n, id slug
+    else if(/^pc$/i.test(p)){pc=true;matched=true}else if(m=p.match(/^cur\s*:?\s*(\d+)/i)){cur=+m[1];matched=true}
+    else if(m=p.match(/^speed\s*:?\s*(\d+)/i)){speed=+m[1];matched=true}else if(m=p.match(/^id\s*:?\s*([A-Za-z0-9._-]+)$/i)){id=m[1].toLowerCase();matched=true}}
+  if(!matched)return null;return{name,ac,hp,cr,initMod,size,count,saves,atks,pc,cur,speed,id}}
 function parseEncounter(md){return gmSection(String(md||'')).split('\n').map(parseStatLine).filter(Boolean)}
 function addFromMd(md,room){const ents=parseEncounter(md);if(!ents.length){msg('no stat lines found (need: Name | AC n | HP n | ...)');return 0}
   pushUndo();let added=0;const colors=['#c0392b','#8e44ad','#16a085','#d35400','#2980b9','#7f8c8d'];
@@ -1552,6 +1563,74 @@ function addFromMd(md,room){const ents=parseEncounter(md);if(!ents.length){msg('
   const el=elOf(ents.flatMap(e=>Array(e.count).fill(e.cr)));
   log('R'+st.round+': loaded '+added+' enemies'+(room?' for '+roomLabel(roomByN(room)||{n:room}):'')+(el?' (EL '+el+')':''));touch();
   msg(added+' combatants added'+(el?' — EL '+el:'')+' — '+(room?'use Deploy in Rooms, or ':'')+'📍 to place');return added}
+
+// ---------- party import: stat lines written by the character sheet (see the coordination spec) ----------
+function slugOf(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}
+function tokenImgFrom(file){return new Promise(res=>{const r=new FileReader();r.onerror=()=>res(null);r.onload=()=>{const im=new Image();im.onerror=()=>res(null);
+  im.onload=()=>{const k=Math.min(1,128/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/webp',.85))};im.src=r.result};r.readAsDataURL(file)})}
+async function importParty(files){
+  const mds=[],imgs={};
+  for(const f of files){if(/\.(md|txt)$/i.test(f.name))mds.push(await f.text());else if(/^image\//.test(f.type)||/\.(webp|png|jpe?g)$/i.test(f.name))imgs[slugOf(f.name.replace(/\.token\.[a-z0-9]+$/i,'').replace(/\.[a-z0-9]+$/i,''))]=f}
+  const ents=[];for(const md of mds)for(const ln of md.split('\n')){const e=parseStatLine(ln);if(e&&e.pc)ents.push(e)}
+  if(!ents.length)return msg('no party lines found (a character line needs the "pc" part)');
+  const sidOf=e=>e.id||slugOf(e.name),find=e=>st.tokens.find(k=>k.pc&&k.sid===sidOf(e));
+  const ups=ents.filter(find),news=ents.filter(e=>!find(e));
+  if(!confirm('Import party: add '+news.length+' ('+(news.map(e=>e.name).join(', ')||'none')+') and update '+ups.length+' ('+(ups.map(e=>e.name).join(', ')||'none')+').\nUpdates change AC, max HP, saves, initiative and image only; position, conditions and initiative order stay.'))return;
+  const syncHp=ups.some(e=>e.cur!=null)&&confirm('Also set current HP from the file for the updated characters?\nOK = yes, Cancel = keep their current HP.');
+  pushUndo();
+  for(const e of ents){const sid=sidOf(e),img=imgs[sid]?await tokenImgFrom(imgs[sid]):null;let t=find(e);
+    if(t){t.ac=e.ac;t.maxHp=e.hp;t.initMod=e.initMod;t.saves=e.saves;if(e.atks.length)t.atks=e.atks;if(e.speed!=null)t.speed=e.speed;if(img)t.img=img;
+      if(syncHp&&e.cur!=null)t.hp=Math.min(e.cur,t.maxHp||e.cur);else if(t.maxHp&&t.hp>t.maxHp)t.hp=t.maxHp}
+    else{t=tokenFrom({name:e.name,color:'#2980b9',size:e.size,ac:e.ac,maxHp:e.hp,cur:e.cur,initMod:e.initMod,saves:e.saves,atks:e.atks,pc:true,img,id:sid,speed:e.speed},1,1);st.tokens.push(t)}}
+  log('R'+st.round+': party imported ('+news.length+' new, '+ups.length+' updated)');touch();msg('party imported: '+news.length+' added, '+ups.length+' updated'+(news.length?' — 📍 to place':''))}
+$('#partyBtn').onclick=()=>$('#partyFile').click();
+$('#partyFile').onchange=e=>{const fs=[...e.target.files];e.target.value='';if(fs.length)importParty(fs)};
+
+// ---------- lights and layers overlay: map-overlay files from the map drawing tool ----------
+const GCT_MAJOR=1,c01=v=>Math.max(0,Math.min(1,+v||0)),hex6=(v,d)=>{v=String(v||'');if(/^#[0-9a-f]{3}$/i.test(v))v='#'+v[1]+v[1]+v[2]+v[2]+v[3]+v[3];return/^#[0-9a-f]{6}$/i.test(v)?v.toLowerCase():d},
+  hexA=(h,a)=>'rgba('+parseInt(h.slice(1,3),16)+','+parseInt(h.slice(3,5),16)+','+parseInt(h.slice(5,7),16)+','+a+')',num=(v,d)=>Number.isFinite(+v)&&v!==null&&v!==''?+v:d;
+function ovClean(d){const times=(Array.isArray(d.times)?d.times:[]).filter(t=>t&&t.id!=null).map(t=>({id:String(t.id),name:String(t.name||t.id),tint:hex6(t.tint,'#000000'),alpha:c01(t.alpha),lights:t.lights==null?1:c01(t.lights)}));
+  const lights=(Array.isArray(d.lights)?d.lights:[]).filter(l=>l&&(l.on||(Number.isFinite(+l.x)&&Number.isFinite(+l.y)))).map(l=>{const b=Math.max(0,num(l.bright,2));let m=num(l.dim,b*2);if(m<=b)m=b>0?b*2:1;
+    return{x:num(l.x,null),y:num(l.y,null),on:l.on?String(l.on):'',bright:b,dim:m,color:hex6(l.color,'#ffb347'),at:Array.isArray(l.at)?l.at.map(String):[]}});
+  const layers=(Array.isArray(d.layers)?d.layers:[]).filter(l=>l&&l.id!=null&&Array.isArray(l.shape)&&l.shape.length>=3).map(l=>({id:String(l.id),type:String(l.type||'layer'),name:String(l.name||l.id),
+    shape:l.shape.map(p=>[num(p&&p[0],0),num(p&&p[1],0)]),shown:l.shown!==false,reveal:l.reveal==='pc-inside'?'pc-inside':'',color:hex6(l.color,l.type==='roof'?'#5a4636':'#8899aa'),alpha:l.alpha==null?null:c01(l.alpha)}));
+  return{times,lights,layers}}
+function ovImport(txt){let d;try{d=JSON.parse(txt)}catch(e){return msg('not a valid overlay file')}
+  if(!d||d.kind!=='map-overlay')return msg('this is not a map-overlay file');
+  if(!(+d.gct>=1)||+d.gct>GCT_MAJOR)return msg('this overlay needs a newer tracker (contract v'+d.gct+')');
+  if(d.map&&st.pubId&&d.map!==st.pubId&&!confirm('This overlay was made for a different map. Load it anyway?'))return;
+  const data=ovClean(d);pushUndo();
+  st.overlay={data,time:(data.times.find(t=>t.id==='day')||data.times[0]||{}).id||null,show:{}};
+  renderOverlayUI();touch();msg('overlay loaded: '+data.times.length+' times, '+data.lights.length+' lights, '+data.layers.length+' layers')}
+function ovLayerOn(l){const s=st.overlay.show||{};return l.id in s?!!s[l.id]:l.shown!==false}
+function inPoly(px,py,s){let c=false;for(let i=0,j=s.length-1;i<s.length;j=i++){const a=s[i],b=s[j];if((a[1]>py)!==(b[1]>py)&&px<(b[0]-a[0])*(py-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+const ovOff=document.createElement('canvas');
+function drawOverlayLight(ctx,PL,cs,V){const o=st.overlay;if(!o)return;const tm=o.data.times.find(t=>t.id===o.time)||null,amt=tm?tm.lights:1;
+  const act=amt>0?o.data.lights.filter(l=>!l.at.length||(tm&&l.at.includes(tm.id))):[];
+  const pos=l=>{if(l.on){const t=st.tokens.find(k=>k.name===l.on&&k.x>=0&&!tokenHidden(k));if(t)return[M+t.x*cs+t.size*cs/2,M+t.y*cs+t.size*cs/2]}return l.x==null?null:[M+l.x*cs+cs/2,M+l.y*cs+cs/2]};
+  if(tm&&tm.alpha>0){ovOff.width=ctx.canvas.width;ovOff.height=ctx.canvas.height;const oc=ovOff.getContext('2d');oc.setTransform(1,0,0,1,-V.x0*cs,-V.y0*cs);
+    oc.globalAlpha=tm.alpha;oc.fillStyle=tm.tint;oc.fillRect(M,M,st.cols*cs,st.rows*cs);oc.globalAlpha=1;oc.globalCompositeOperation='destination-out';
+    for(const l of act){const p=pos(l);if(!p)continue;const R=l.dim*cs,g=oc.createRadialGradient(p[0],p[1],0,p[0],p[1],R),k=l.bright/l.dim;
+      g.addColorStop(0,'rgba(0,0,0,'+amt+')');g.addColorStop(k,'rgba(0,0,0,'+amt+')');g.addColorStop(1,'rgba(0,0,0,0)');oc.fillStyle=g;oc.beginPath();oc.arc(p[0],p[1],R,0,7);oc.fill()}
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(ovOff,0,0);ctx.restore()}
+  if(act.length){ctx.save();ctx.globalCompositeOperation='screen';
+    for(const l of act){const p=pos(l);if(!p)continue;const R=l.dim*cs,g=ctx.createRadialGradient(p[0],p[1],0,p[0],p[1],R);
+      g.addColorStop(0,hexA(l.color,.38*amt));g.addColorStop(l.bright/l.dim,hexA(l.color,.16*amt));g.addColorStop(1,hexA(l.color,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(p[0],p[1],R,0,7);ctx.fill()}
+    ctx.restore()}}
+function drawOverlayLayers(ctx,PL,cs){const o=st.overlay;if(!o)return;
+  for(const l of o.data.layers){if(!ovLayerOn(l))continue;
+    if(l.reveal==='pc-inside'&&st.tokens.some(t=>t.pc&&!t.mk&&t.x>=0&&inPoly(t.x+.5,t.y+.5,l.shape)))continue;
+    const roof=l.type==='roof';ctx.save();ctx.globalAlpha=PL?(l.alpha!=null?l.alpha:(roof?1:.35)):(roof?.4:(l.alpha!=null?l.alpha:.35));ctx.fillStyle=l.color;
+    ctx.beginPath();l.shape.forEach((p,i)=>i?ctx.lineTo(M+p[0]*cs,M+p[1]*cs):ctx.moveTo(M+p[0]*cs,M+p[1]*cs));ctx.closePath();ctx.fill();ctx.restore()}}
+function renderOverlayUI(){const o=st.overlay,sel=$('#ovTime'),L=$('#ovLayers');$('#ovClear').style.display=o?'':'none';
+  if(!o){sel.style.display='none';L.innerHTML='';return}
+  const ts=o.data.times;sel.style.display=ts.length?'':'none';sel.innerHTML=ts.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('');sel.value=o.time||'';
+  L.innerHTML=o.data.layers.map(l=>'<label class="ck"><input type="checkbox" data-l="'+esc(l.id)+'"'+(ovLayerOn(l)?' checked':'')+'> '+esc(l.name)+'</label>').join('')}
+$('#ovLoad').onclick=()=>$('#ovFile').click();
+$('#ovFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)f.text().then(ovImport)};
+$('#ovTime').onchange=e=>{if(!st.overlay)return;pushUndo();st.overlay.time=e.target.value;touch()};
+$('#ovLayers').onchange=e=>{const c=e.target.closest('input[data-l]');if(!c||!st.overlay)return;pushUndo();(st.overlay.show=st.overlay.show||{})[c.dataset.l]=c.checked;touch()};
+$('#ovClear').onclick=()=>{pushUndo();st.overlay=null;renderOverlayUI();touch();msg('overlay removed')};
 // ---------- encounter document (overview + rooms, nested under areas) ----------
 let nSel=0; // 0 = overview, otherwise room number
 const NTPL=[
@@ -1903,7 +1982,7 @@ function loadState(s){st=Object.assign(freshState(),s);if(st.autoFog===undefined
   if(!st.roomMap||st.roomMap.length!==st.cols*st.rows)st.roomMap=Array(st.cols*st.rows).fill(0);
   st.tokens.forEach(t=>{t.ac=t.ac||0;t.img=t.img||null;t.initMod=t.initMod||0;t.vision=t.vision||0;t.vmode=t.vmode||'normal';if(t.dv==null)t.dv=60;t.cr=crParse(t.cr);t.saves=t.saves||{};t.atks=t.atks||[];t.conds=t.conds||[];t.buffs=t.buffs||[]});
   $('#title').value=st.title;$('#gc').value=st.cols;$('#gr').value=st.rows;$('#zoom').value=st.cs;$('#autoFog').checked=!!st.autoFog;$('#ambLight').value=st.ambient;$('#fogL').value=st.fogL;ui.pal=Math.min(ui.pal,st.palette.length-1);ui.sel=null;ui.aoe=null;ui.open.clear();
-  $('#palColor').value=st.palette[ui.pal].c;$('#palName').value=st.palette[ui.pal].n;$('#palLos').checked=!!st.palette[ui.pal].los;renderPal();renderRoomOpts();renderZoneOpts();updateBgBtn();updateCampTag();touch()}
+  $('#palColor').value=st.palette[ui.pal].c;$('#palName').value=st.palette[ui.pal].n;$('#palLos').checked=!!st.palette[ui.pal].los;renderPal();renderRoomOpts();renderZoneOpts();updateBgBtn();updateCampTag();renderOverlayUI();touch()}
 
 /* ================= WORLD: hex sandbox map (campaign level) ================= */
 const TERR=[{n:'Ocean',c:'#2a5a86',g:''},{n:'Lake / shallows',c:'#4a8bb5',g:''},{n:'Plains',c:'#a9c46c',g:''},{n:'Farmland',c:'#cdd28a',g:'🌾'},{n:'Forest',c:'#4d8a4a',g:'🌲'},{n:'Jungle',c:'#2f7a4f',g:'🌴'},{n:'Hills',c:'#9a9a5a',g:'⛰'},{n:'Mountains',c:'#7d7a78',g:'🏔'},{n:'Desert',c:'#dcc58a',g:''},{n:'Swamp',c:'#5f7a55',g:'🌿'},{n:'Tundra / snow',c:'#dfe8ee',g:'❄'},{n:'Badlands',c:'#a9684a',g:''}];
