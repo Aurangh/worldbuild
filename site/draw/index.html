@@ -904,21 +904,15 @@ function drawStairs(ctx, s, P){
 }
 
 function drawDoor(ctx, d, P, opt){
-  const [cx, cy, ang] = doorCenter(d), L = P * .86, t = P * .2, lw = Math.max(1, P / 45);
+  const [cx, cy, ang] = doorCenter(d), L = P * .86, t = P * .2, T = P * .5, lw = Math.max(1, P / 45), ink = '#141210', edge = Math.max(1.5, P / 18);
   ctx.save(); ctx.translate(cx * P, cy * P); ctx.rotate(ang);
-  if (d.type === 'door' || d.type === 'double'){
-    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.filter = `blur(${(P * .04).toFixed(1)}px)`; ctx.fillRect(-L / 2 + P * .04, -t / 2 + P * .05, L, t); ctx.filter = 'none';
-    const g = ctx.createLinearGradient(0, -t / 2, 0, t / 2); g.addColorStop(0, '#94653a'); g.addColorStop(.5, '#734a27'); g.addColorStop(1, '#4b2e16');
-    ctx.fillStyle = g; ctx.fillRect(-L / 2, -t / 2, L, t);
-    ctx.strokeStyle = 'rgba(35,18,6,.7)'; ctx.lineWidth = lw; ctx.beginPath();
-    for (let i = 1; i < 4; i++){ const xx = -L / 2 + L * i / 4; ctx.moveTo(xx, -t / 2); ctx.lineTo(xx, t / 2); } ctx.stroke();
-    ctx.strokeStyle = '#140b04'; ctx.lineWidth = Math.max(1.5, P / 35); ctx.strokeRect(-L / 2, -t / 2, L, t);
-    ctx.fillStyle = '#2b2b2d';
-    for (const sx of [-L / 2 + P * .05, L / 2 - P * .05]) ctx.fillRect(sx - P * .025, -t / 2 - P * .015, P * .05, t + P * .03);
-    ctx.fillStyle = '#d4ac5e';
-    const hs = d.type === 'double' ? [-P * .07, P * .07] : [L * .3];
-    for (const hx of hs){ ctx.beginPath(); ctx.arc(hx, 0, Math.max(1.2, P * .028), 0, 7); ctx.fill(); }
-    if (d.type === 'double'){ ctx.strokeStyle = '#140b04'; ctx.lineWidth = Math.max(1.5, P / 30); ctx.beginPath(); ctx.moveTo(0, -t / 2); ctx.lineTo(0, t / 2); ctx.stroke(); }
+  const slab = fill => { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.filter = `blur(${(P * .04).toFixed(1)}px)`; ctx.fillRect(-L / 2 + P * .04, -T / 2 + P * .05, L, T); ctx.filter = 'none';
+    ctx.fillStyle = ink; ctx.fillRect(-L / 2 - edge / 2, -T / 2 - edge / 2, L + edge, T + edge); ctx.fillStyle = fill; ctx.fillRect(-L / 2, -T / 2, L, T); };
+  if (d.type === 'door' || d.type === 'double'){ // white, half a square thick: unmistakable against any wall
+    slab('#f6f3ec'); ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(-L / 2, T * .18, L, T * .32);
+    ctx.strokeStyle = 'rgba(20,18,16,.35)'; ctx.lineWidth = lw; ctx.strokeRect(-L / 2 + P * .07, -T / 2 + P * .07, L - P * .14, T - P * .14);
+    if (d.type === 'double'){ ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1.5, P / 26); ctx.beginPath(); ctx.moveTo(0, -T / 2); ctx.lineTo(0, T / 2); ctx.stroke(); }
+    ctx.fillStyle = ink; for (const hx of d.type === 'double' ? [-P * .08, P * .08] : [L * .3]){ ctx.beginPath(); ctx.arc(hx, 0, Math.max(1.5, P * .04), 0, 7); ctx.fill(); }
   } else if (d.type === 'portcullis'){
     const bw = Math.max(1.5, P * .045), tt = t * 1.1;
     ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.filter = `blur(${(P * .03).toFixed(1)}px)`; ctx.fillRect(-L / 2 + P * .03, -bw / 2 + P * .05, L, bw); ctx.filter = 'none';
@@ -932,11 +926,10 @@ function drawDoor(ctx, d, P, opt){
     ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = Math.max(.8, P / 60); ctx.beginPath();
     for (let i = 1; i < 8; i++){ const xx = -L / 2 + L * i / 8; ctx.moveTo(xx, -tt / 2); ctx.lineTo(xx, tt / 2); } ctx.moveTo(-L / 2, 0); ctx.lineTo(L / 2, 0); ctx.stroke();
     ctx.strokeStyle = '#5a3e22'; ctx.lineWidth = Math.max(1.2, P / 35); ctx.strokeRect(-L / 2, -tt / 2, L, tt); ctx.beginPath(); ctx.moveTo(0, -tt / 2); ctx.lineTo(0, tt / 2); ctx.stroke();
-  } else if (d.type === 'window'){
-    ctx.fillStyle = '#121110'; ctx.fillRect(-L * .42, -t * .32, L * .84, t * .64);
-    ctx.fillStyle = 'rgba(160,210,235,.9)'; ctx.fillRect(-L * .38, -t * .18, L * .76, t * .36);
-    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(-L * .38, -t * .18, L * .76, Math.max(.8, t * .08));
-    ctx.fillStyle = '#121110'; ctx.fillRect(-lw / 2, -t * .32, lw, t * .64);
+  } else if (d.type === 'window'){ // crystal blue, half a square thick, with glazing bars
+    slab('#7fd3f5'); const gg = ctx.createLinearGradient(-L / 2, -T / 2, L / 2, T / 2); gg.addColorStop(0, 'rgba(255,255,255,.55)'); gg.addColorStop(.45, 'rgba(255,255,255,.05)'); gg.addColorStop(1, 'rgba(20,90,140,.25)'); ctx.fillStyle = gg; ctx.fillRect(-L / 2, -T / 2, L, T);
+    ctx.strokeStyle = '#f4fbff'; ctx.lineWidth = Math.max(1.2, P / 30); ctx.beginPath(); ctx.moveTo(-L / 2, 0); ctx.lineTo(L / 2, 0); for (const fx of [-1 / 6, 1 / 6]){ ctx.moveTo(L * fx * 3 / 1.5 * .5, -T / 2); ctx.lineTo(L * fx * 3 / 1.5 * .5, T / 2); } ctx.stroke();
+    ctx.strokeStyle = ink; ctx.lineWidth = edge; ctx.strokeRect(-L / 2, -T / 2, L, T);
   } else if (d.type === 'secret' && opt.secret){
     ctx.strokeStyle = '#e25555'; ctx.lineWidth = Math.max(1.5, P / 30); ctx.setLineDash([P * .08, P * .06]);
     ctx.strokeRect(-L / 2, -t * .7, L, t * 1.4); ctx.setLineDash([]);
@@ -1860,6 +1853,44 @@ Object.assign(STAMPS, {
     drawBare(c, R, rnd){ greatTrunk(c, R, rnd); greatBranches(c, R, rnd); } },
 });
 STAMP_KEYS.push('bigtree');
+// ---- fireplaces (furniture): stone, grand marble, round central hearth. All give firelight; the light can be switched off per object.
+function hearthFire(c, x, y, s, R, rnd){ // logs, embers and flames seen from above
+  const g = c.createRadialGradient(x, y, 0, x, y, s * 1.3); g.addColorStop(0, 'rgba(255,170,60,.55)'); g.addColorStop(1, 'rgba(255,90,20,0)'); c.fillStyle = g; c.fillRect(x - s * 1.4, y - s * 1.4, s * 2.8, s * 2.8);
+  c.lineCap = 'round'; for (const [a, l] of [[.35, 1], [-.4, .95], [1.4, .7]]){ for (const [col, w] of [['#1a0e06', s * .34], ['#6b4223', s * .24]]){ c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x - Math.cos(a) * s * l * .8, y - Math.sin(a) * s * l * .8); c.lineTo(x + Math.cos(a) * s * l * .8, y + Math.sin(a) * s * l * .8); c.stroke(); } }
+  for (let i = 0; i < 14; i++){ const a = rnd() * 6.28, d = s * .7 * Math.sqrt(rnd()); disc(c, x + Math.cos(a) * d, y + Math.sin(a) * d, Math.max(.6, s * (.04 + rnd() * .05)), `rgba(255,${150 + rnd() * 80 | 0},60,.9)`); }
+  flame(c, x, y, s * .55); }
+Object.assign(STAMPS, {
+  fireplace: { cat: 'furniture', name: 'Stone fireplace', w: 2, h: 1.2, z: 2, hg: 1.2, tint: 'stone', lp: 'campfire', lc: '#ffb35a', draw(c, R, rnd){
+    const W = R * .98, back = -R * .58, front = R * .3;
+    c.fillStyle = 'rgba(10,9,8,.9)'; c.fillRect(-W - 1, back - 1, 2 * W + 2, R * 1.18);
+    c.fillStyle = linFill(c, 0, front, 0, R * .58, RAMP.stone, .7, .5); c.fillRect(-W * .9, front, W * 1.8, R * .27);                                   // hearth slab
+    c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = Math.max(.6, R / 60); c.beginPath(); for (let x = -W * .9 + R * .3; x < W * .9; x += R * .3){ c.moveTo(x, front); c.lineTo(x, R * .57); } c.stroke();
+    for (const [x, y, w, h] of [[-W * .79, back + R * .38, W * .42, R * .76], [W * .79, back + R * .38, W * .42, R * .76], [0, back + R * .1, W * 2, R * .2]]) blockRect(c, x, y, w, h, 0, R);   // cheeks and back
+    c.fillStyle = '#0c0a08'; c.fillRect(-W * .58, back + R * .2, W * 1.16, R * .68); const sg = c.createLinearGradient(0, back + R * .2, 0, front); sg.addColorStop(0, 'rgba(0,0,0,.6)'); sg.addColorStop(1, 'rgba(40,30,22,.4)'); c.fillStyle = sg; c.fillRect(-W * .58, back + R * .2, W * 1.16, R * .68);
+    hearthFire(c, 0, back + R * .55, R * .3, R, rnd); } },
+  fireplace_grand: { cat: 'furniture', name: 'Grand fireplace', w: 3, h: 1.4, z: 2, hg: 1.6, lp: 'campfire', lc: '#ffb35a', draw(c, R, rnd){
+    const W = R * 1.48, back = -R * .68, front = R * .32, marble = ['#5e5a55','#8a857d','#aaa49b','#c6c0b6','#ddd8cf','#f1ede6'].map(hexRgb);
+    c.fillStyle = 'rgba(10,9,8,.9)'; c.fillRect(-W - 1, back - 1, 2 * W + 2, R * 1.38);
+    c.fillStyle = linFill(c, 0, front, 0, R * .68, RAMP.stone, .45, .3); c.fillRect(-W * .95, front, W * 1.9, R * .35);
+    c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = Math.max(.6, R / 60); c.strokeRect(-W * .95 + 2, front + 2, W * 1.9 - 4, R * .35 - 4);
+    const mant = (x, y, w, h) => { c.fillStyle = 'rgba(10,9,8,.9)'; c.fillRect(x - w / 2 - 1, y - h / 2 - 1, w + 2, h + 2); c.fillStyle = linFill(c, x - w / 2, y - h / 2, x + w / 2, y + h / 2, marble, .95, .55); c.fillRect(x - w / 2, y - h / 2, w, h);
+      c.strokeStyle = 'rgba(120,110,100,.35)'; c.lineWidth = Math.max(.6, R / 70); c.beginPath(); for (let i = 0; i < 3; i++){ const yy = y - h / 2 + h * rnd(); c.moveTo(x - w / 2, yy); c.bezierCurveTo(x - w / 6, yy + (rnd() - .5) * h, x + w / 6, yy + (rnd() - .5) * h, x + w / 2, yy + (rnd() - .5) * h * .5); } c.stroke(); };
+    mant(0, back + R * .13, W * 2, R * .26); mant(-W * .82, back + R * .5, W * .36, R * .74); mant(W * .82, back + R * .5, W * .36, R * .74);
+    for (const sx of [-1, 1]){ disc(c, sx * W * .82, back + R * .5, R * .1, 'rgba(0,0,0,.25)'); disc(c, sx * W * .82, back + R * .48, R * .08, '#efe9de'); }
+    c.fillStyle = '#0b0908'; c.fillRect(-W * .64, back + R * .26, W * 1.28, R * .74);
+    hearthFire(c, 0, back + R * .62, R * .36, R, rnd);
+    c.strokeStyle = '#151515'; c.lineWidth = Math.max(1.5, R / 22); c.beginPath(); c.moveTo(-W * .6, front - R * .03); c.lineTo(W * .6, front - R * .03); c.stroke();   // fender
+    c.strokeStyle = '#c9a23a'; c.lineWidth = Math.max(1, R / 40); c.stroke();
+    for (const sx of [-1, 1]){ disc(c, sx * W * .45, back + R * .62, R * .07, '#141414'); disc(c, sx * W * .45, back + R * .6, R * .045, '#c9a23a'); } } },
+  hearth: { cat: 'furniture', name: 'Round central hearth', w: 2, h: 2, z: 1, hg: .5, tint: 'stone', lp: 'campfire', lc: '#ffb35a', draw(c, R, rnd){
+    const r = R * .78; disc(c, 0, 0, r * 1.06, 'rgba(10,9,8,.85)');
+    for (let i = 0; i < 16; i++){ const a = i / 16 * 6.2832 + rnd() * .1; c.save(); c.rotate(a); blockRect(c, r * .84, 0, r * .3, r * .36, 0, R); c.restore(); }
+    disc(c, 0, 0, r * .68, '#100c09'); const g = c.createRadialGradient(0, 0, 0, 0, 0, r * .68); g.addColorStop(0, 'rgba(70,40,20,.5)'); g.addColorStop(1, 'rgba(20,16,12,.9)'); disc(c, 0, 0, r * .66, g);
+    for (let i = 0; i < 18; i++){ const a = rnd() * 6.28, d = r * (.35 + rnd() * .28); disc(c, Math.cos(a) * d, Math.sin(a) * d, R * (.02 + rnd() * .03), `rgba(${90 + rnd() * 50 | 0},${80 + rnd() * 40 | 0},${70 + rnd() * 30 | 0},.8)`); }
+    hearthFire(c, 0, 0, r * .42, R, rnd); } },
+});
+STAMP_KEYS.push('fireplace', 'fireplace_grand', 'hearth');
+
 function drawOwnShadow(ctx, o, st, P){ // a tree standing at its base: shadow falls away from the sun, crown-shaped, plus the trunk's line
   const R2 = P * o.s, rr = o.r || 0, b = st.baseY * R2, bx = o.x * P - Math.sin(rr) * b, by = o.y * P + Math.cos(rr) * b, H = st.hg * R2 * .55;
   const sx = bx + SUN.dx * H, sy = by + SUN.dy * H, L = Math.hypot(SUN.dx, SUN.dy), cr = st.crownR * R2, rnd = mulberry((o.v * 131 + 7) | 0);
@@ -2108,6 +2139,9 @@ function buildNight(m, P, W, H, k, lr, dm = true, tod = 'night'){
     mx.putImageData(id, 0, 0);
     d.save(); d.globalAlpha = Math.max(.4, LA); d.filter = `blur(${(P * .9 * lr).toFixed(1)}px)`; d.drawImage(mc, 0, 0, m.cols * P, m.rows * P); d.filter = 'none'; d.drawImage(mc, 0, 0, m.cols * P, m.rows * P); d.restore();
     g.save(); g.globalAlpha = .5; g.filter = `blur(${(P * .6 * lr).toFixed(1)}px)`; g.drawImage(mc, 0, 0, m.cols * P, m.rows * P); g.restore(); }
+  // windows keep their blue glass at night, so they never read as doors
+  for (const l of m.layers || []) if (l.visible) for (const dd of l.struct.doors || []) if (dd.type === 'window'){ const [wx, wy, wa] = doorCenter(dd);
+    for (const [c2, col] of [[d, 'rgba(225,238,250,.9)'], [g, 'rgba(70,150,210,.35)']]){ c2.save(); c2.translate(wx * P, wy * P); c2.rotate(wa); c2.fillStyle = col; c2.fillRect(-P * .43, -P * .25, P * .86, P * .5); c2.restore(); } }
   return { dark, glow };
 }
 
